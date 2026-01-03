@@ -1,261 +1,268 @@
--- ============================================================================
--- Football Predictor Pro - Database Schema
--- ============================================================================
+-- ============================================
+-- Migration 001: Initial Schema
+-- Football Predictor Pro
+-- ============================================
 
 -- Enable extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
--- ============================================================================
--- TEAMS
--- ============================================================================
-CREATE TABLE teams (
+-- Leagues
+CREATE TABLE IF NOT EXISTS leagues (
     id SERIAL PRIMARY KEY,
-    external_id VARCHAR(100) UNIQUE,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
     name VARCHAR(100) NOT NULL,
-    short_name VARCHAR(10),
-    country VARCHAR(50),
-    league VARCHAR(50),
+    short_name VARCHAR(20),
+    country VARCHAR(50) NOT NULL,
+    country_code CHAR(2),
     logo_url TEXT,
-    stadium VARCHAR(100),
-    founded_year INTEGER,
+    external_id VARCHAR(50),
+    is_active BOOLEAN DEFAULT true,
+    priority INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ============================================================================
--- PLAYERS
--- ============================================================================
-CREATE TABLE players (
+-- Seasons
+CREATE TABLE IF NOT EXISTS seasons (
     id SERIAL PRIMARY KEY,
-    external_id VARCHAR(100) UNIQUE,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
+    league_id INTEGER REFERENCES leagues(id) ON DELETE CASCADE,
+    name VARCHAR(20) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    is_current BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(league_id, name)
+);
+
+-- Teams
+CREATE TABLE IF NOT EXISTS teams (
+    id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
     name VARCHAR(100) NOT NULL,
+    short_name VARCHAR(20),
+    code VARCHAR(5),
+    logo_url TEXT,
+    stadium VARCHAR(100),
+    stadium_capacity INTEGER,
+    city VARCHAR(50),
+    country VARCHAR(50),
+    founded_year INTEGER,
+    external_ids JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Team Seasons
+CREATE TABLE IF NOT EXISTS team_seasons (
+    id SERIAL PRIMARY KEY,
+    team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+    season_id INTEGER REFERENCES seasons(id) ON DELETE CASCADE,
+    league_id INTEGER REFERENCES leagues(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(team_id, season_id)
+);
+
+-- Players
+CREATE TABLE IF NOT EXISTS players (
+    id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
     team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
-    position VARCHAR(30),
+    name VARCHAR(100) NOT NULL,
+    short_name VARCHAR(50),
     nationality VARCHAR(50),
     birth_date DATE,
     height_cm INTEGER,
     weight_kg INTEGER,
-    preferred_foot VARCHAR(10),
-    market_value DECIMAL(15, 2),
+    position VARCHAR(20),
+    jersey_number INTEGER,
     photo_url TEXT,
+    market_value DECIMAL(15,2),
+    market_value_currency VARCHAR(3) DEFAULT 'EUR',
+    external_ids JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ============================================================================
--- MATCHES
--- ============================================================================
-CREATE TABLE matches (
+-- Matches
+CREATE TABLE IF NOT EXISTS matches (
     id SERIAL PRIMARY KEY,
-    external_id VARCHAR(100) UNIQUE,
-    home_team_id INTEGER REFERENCES teams(id) NOT NULL,
-    away_team_id INTEGER REFERENCES teams(id) NOT NULL,
-    league VARCHAR(50) NOT NULL,
-    season VARCHAR(10) NOT NULL,
-    matchday INTEGER,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
+    season_id INTEGER REFERENCES seasons(id) ON DELETE CASCADE,
+    league_id INTEGER REFERENCES leagues(id) ON DELETE CASCADE,
+    home_team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+    away_team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
     match_date TIMESTAMPTZ NOT NULL,
-    status VARCHAR(20) DEFAULT 'scheduled', -- scheduled, live, finished, postponed
-    home_score INTEGER,
-    away_score INTEGER,
-    home_ht_score INTEGER,
-    away_ht_score INTEGER,
+    matchday INTEGER,
     venue VARCHAR(100),
     referee VARCHAR(100),
-    attendance INTEGER,
+    status VARCHAR(20) DEFAULT 'scheduled',
+    minute INTEGER,
+    home_score INTEGER,
+    away_score INTEGER,
+    home_score_ht INTEGER,
+    away_score_ht INTEGER,
+    external_ids JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ============================================================================
--- MATCH STATISTICS
--- ============================================================================
-CREATE TABLE match_stats (
+-- Match Stats
+CREATE TABLE IF NOT EXISTS match_stats (
     id SERIAL PRIMARY KEY,
     match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
-    team_id INTEGER REFERENCES teams(id),
-    is_home BOOLEAN NOT NULL,
-    possession DECIMAL(5, 2),
-    shots INTEGER,
-    shots_on_target INTEGER,
-    shots_off_target INTEGER,
-    blocked_shots INTEGER,
-    corners INTEGER,
-    fouls INTEGER,
-    yellow_cards INTEGER,
-    red_cards INTEGER,
-    offsides INTEGER,
-    passes INTEGER,
-    pass_accuracy DECIMAL(5, 2),
-    crosses INTEGER,
-    tackles INTEGER,
-    interceptions INTEGER,
-    saves INTEGER,
-    xg DECIMAL(5, 2),
-    xg_open_play DECIMAL(5, 2),
-    xg_set_piece DECIMAL(5, 2),
+    team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+    possession DECIMAL(5,2),
+    shots INTEGER DEFAULT 0,
+    shots_on_target INTEGER DEFAULT 0,
+    corners INTEGER DEFAULT 0,
+    fouls INTEGER DEFAULT 0,
+    yellow_cards INTEGER DEFAULT 0,
+    red_cards INTEGER DEFAULT 0,
+    passes INTEGER DEFAULT 0,
+    pass_accuracy DECIMAL(5,2),
+    xg DECIMAL(5,3),
+    xg_against DECIMAL(5,3),
     created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(match_id, team_id)
 );
 
--- ============================================================================
--- LINEUPS
--- ============================================================================
-CREATE TABLE lineups (
-    id SERIAL PRIMARY KEY,
-    match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
-    team_id INTEGER REFERENCES teams(id),
-    player_id INTEGER REFERENCES players(id),
-    is_starter BOOLEAN DEFAULT true,
-    position VARCHAR(20),
-    shirt_number INTEGER,
-    minutes_played INTEGER,
-    rating DECIMAL(3, 1),
-    goals INTEGER DEFAULT 0,
-    assists INTEGER DEFAULT 0,
-    yellow_cards INTEGER DEFAULT 0,
-    red_cards INTEGER DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(match_id, player_id)
-);
-
--- ============================================================================
--- NEWS
--- ============================================================================
-CREATE TABLE news (
-    id SERIAL PRIMARY KEY,
-    external_id VARCHAR(200) UNIQUE,
-    source VARCHAR(50) NOT NULL,
-    url TEXT NOT NULL,
-    title TEXT NOT NULL,
-    content TEXT,
-    summary TEXT,
-    author VARCHAR(100),
-    image_url TEXT,
-    published_at TIMESTAMPTZ NOT NULL,
-    scraped_at TIMESTAMPTZ DEFAULT NOW(),
-    sentiment_score DECIMAL(4, 3), -- -1 to 1
-    sentiment_label VARCHAR(20),
-    processed BOOLEAN DEFAULT false,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- News-Team relationship
-CREATE TABLE news_teams (
-    news_id INTEGER REFERENCES news(id) ON DELETE CASCADE,
-    team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
-    relevance_score DECIMAL(4, 3),
-    is_primary BOOLEAN DEFAULT false,
-    PRIMARY KEY (news_id, team_id)
-);
-
--- News-Player relationship
-CREATE TABLE news_players (
-    news_id INTEGER REFERENCES news(id) ON DELETE CASCADE,
-    player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
-    relevance_score DECIMAL(4, 3),
-    PRIMARY KEY (news_id, player_id)
-);
-
--- ============================================================================
--- ODDS
--- ============================================================================
-CREATE TABLE odds (
-    id SERIAL PRIMARY KEY,
-    match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
-    bookmaker VARCHAR(50) NOT NULL,
-    market_type VARCHAR(30) NOT NULL, -- 1x2, over_under, asian_handicap, btts
-    selection VARCHAR(50) NOT NULL,
-    odds_value DECIMAL(8, 3) NOT NULL,
-    line DECIMAL(5, 2), -- For handicap/over-under markets
-    recorded_at TIMESTAMPTZ DEFAULT NOW(),
-    is_opening BOOLEAN DEFAULT false
-);
-
--- ============================================================================
--- ELO RATINGS
--- ============================================================================
-CREATE TABLE elo_ratings (
+-- Team Ratings
+CREATE TABLE IF NOT EXISTS team_ratings (
     id SERIAL PRIMARY KEY,
     team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
-    rating DECIMAL(8, 2) NOT NULL,
-    rating_date DATE NOT NULL,
+    rating_type VARCHAR(20) NOT NULL,
+    rating DECIMAL(10,4) NOT NULL,
+    rating_deviation DECIMAL(10,4),
+    volatility DECIMAL(10,6),
     matches_played INTEGER DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(team_id, rating_date)
+    last_match_id INTEGER REFERENCES matches(id),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(team_id, rating_type)
 );
 
--- ============================================================================
--- PREDICTIONS
--- ============================================================================
-CREATE TABLE predictions (
+-- Predictions
+CREATE TABLE IF NOT EXISTS predictions (
     id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
     match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
     model_name VARCHAR(50) NOT NULL,
     model_version VARCHAR(20),
-    home_win_prob DECIMAL(6, 5) NOT NULL,
-    draw_prob DECIMAL(6, 5) NOT NULL,
-    away_win_prob DECIMAL(6, 5) NOT NULL,
-    expected_home_goals DECIMAL(5, 2),
-    expected_away_goals DECIMAL(5, 2),
-    confidence DECIMAL(5, 4),
-    features_used JSONB,
+    home_win_prob DECIMAL(5,4) NOT NULL,
+    draw_prob DECIMAL(5,4) NOT NULL,
+    away_win_prob DECIMAL(5,4) NOT NULL,
+    expected_home_goals DECIMAL(5,3),
+    expected_away_goals DECIMAL(5,3),
+    most_likely_score VARCHAR(10),
+    confidence DECIMAL(5,4),
     reasoning TEXT,
+    factors JSONB,
+    is_correct BOOLEAN,
+    actual_result CHAR(1),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ============================================================================
--- VALUE BETS
--- ============================================================================
-CREATE TABLE value_bets (
+-- Odds
+CREATE TABLE IF NOT EXISTS odds (
     id SERIAL PRIMARY KEY,
+    match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
+    bookmaker VARCHAR(50) NOT NULL,
+    market_type VARCHAR(30) NOT NULL,
+    home_odds DECIMAL(8,3),
+    draw_odds DECIMAL(8,3),
+    away_odds DECIMAL(8,3),
+    over_under JSONB,
+    btts_yes DECIMAL(8,3),
+    btts_no DECIMAL(8,3),
+    is_opening BOOLEAN DEFAULT false,
+    recorded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Value Bets
+CREATE TABLE IF NOT EXISTS value_bets (
+    id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
     prediction_id INTEGER REFERENCES predictions(id) ON DELETE CASCADE,
     match_id INTEGER REFERENCES matches(id) ON DELETE CASCADE,
+    selection VARCHAR(20) NOT NULL,
+    market_type VARCHAR(30) NOT NULL,
     bookmaker VARCHAR(50),
-    market_type VARCHAR(30),
-    selection VARCHAR(50),
-    predicted_prob DECIMAL(6, 5) NOT NULL,
-    market_odds DECIMAL(8, 3) NOT NULL,
-    implied_prob DECIMAL(6, 5) NOT NULL,
-    edge DECIMAL(6, 5) NOT NULL,
-    expected_value DECIMAL(8, 5),
-    kelly_stake DECIMAL(6, 5),
-    confidence VARCHAR(20), -- low, medium, high
-    recommended BOOLEAN DEFAULT false,
-    result VARCHAR(20), -- pending, won, lost, void
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    odds DECIMAL(8,3) NOT NULL,
+    predicted_prob DECIMAL(5,4) NOT NULL,
+    implied_prob DECIMAL(5,4) NOT NULL,
+    edge DECIMAL(5,4) NOT NULL,
+    kelly_fraction DECIMAL(6,4),
+    recommended_stake DECIMAL(5,4),
+    status VARCHAR(20) DEFAULT 'pending',
+    profit_loss DECIMAL(10,2),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ
 );
 
--- ============================================================================
--- MODEL PERFORMANCE
--- ============================================================================
-CREATE TABLE model_performance (
+-- News
+CREATE TABLE IF NOT EXISTS news (
+    id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
+    source VARCHAR(50) NOT NULL,
+    source_url TEXT,
+    title TEXT NOT NULL,
+    content TEXT,
+    summary TEXT,
+    sentiment_score DECIMAL(4,3),
+    importance_score DECIMAL(4,3),
+    categories JSONB,
+    teams JSONB,
+    players JSONB,
+    match_id INTEGER REFERENCES matches(id),
+    published_at TIMESTAMPTZ,
+    scraped_at TIMESTAMPTZ DEFAULT NOW(),
+    processed_at TIMESTAMPTZ
+);
+
+-- Users
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    full_name VARCHAR(100),
+    avatar_url TEXT,
+    preferences JSONB DEFAULT '{}',
+    subscription_tier VARCHAR(20) DEFAULT 'free',
+    subscription_expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Scraping Logs
+CREATE TABLE IF NOT EXISTS scraping_logs (
+    id SERIAL PRIMARY KEY,
+    source VARCHAR(50) NOT NULL,
+    task_type VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    records_processed INTEGER DEFAULT 0,
+    error_message TEXT,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    duration_seconds INTEGER
+);
+
+-- Model Performance
+CREATE TABLE IF NOT EXISTS model_performance (
     id SERIAL PRIMARY KEY,
     model_name VARCHAR(50) NOT NULL,
-    evaluation_date DATE NOT NULL,
-    matches_evaluated INTEGER,
-    accuracy DECIMAL(6, 5),
-    log_loss DECIMAL(8, 5),
-    brier_score DECIMAL(8, 5),
-    rps DECIMAL(8, 5),
-    calibration_error DECIMAL(8, 5),
-    roi DECIMAL(8, 5),
-    total_bets INTEGER,
-    winning_bets INTEGER,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    period_type VARCHAR(10) NOT NULL,
+    predictions_count INTEGER DEFAULT 0,
+    correct_predictions INTEGER DEFAULT 0,
+    accuracy DECIMAL(5,4),
+    log_loss DECIMAL(6,4),
+    brier_score DECIMAL(6,4),
+    rps DECIMAL(6,4),
+    roi DECIMAL(8,4),
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(model_name, evaluation_date)
-);
-
--- ============================================================================
--- AUDIT LOG
--- ============================================================================
-CREATE TABLE audit_log (
-    id SERIAL PRIMARY KEY,
-    table_name VARCHAR(50) NOT NULL,
-    record_id INTEGER NOT NULL,
-    action VARCHAR(20) NOT NULL, -- INSERT, UPDATE, DELETE
-    old_data JSONB,
-    new_data JSONB,
-    changed_by VARCHAR(100),
-    changed_at TIMESTAMPTZ DEFAULT NOW()
+    UNIQUE(model_name, period_start, period_end, period_type)
 );

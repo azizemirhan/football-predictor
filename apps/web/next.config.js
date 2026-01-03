@@ -1,11 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  experimental: {
-    serverActions: true,
-  },
   images: {
-    domains: ['sofascore.com', 'flashscore.com', 'tmssl.akamaized.net'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'sofascore.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'flashscore.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'tmssl.akamaized.net',
+      },
+    ],
   },
 }
 
