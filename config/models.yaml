@@ -1,0 +1,112 @@
+# ============================================================================
+# ML Models Configuration
+# ============================================================================
+
+models:
+  # Poisson Distribution Model
+  poisson:
+    enabled: true
+    weight: 0.25
+    parameters:
+      home_advantage: 0.1
+      time_decay: 0.005  # xi parameter for Dixon-Coles
+      max_goals: 10
+
+  # Elo Rating System
+  elo:
+    enabled: true
+    weight: 0.20
+    parameters:
+      k_factor: 32
+      home_advantage: 100
+      initial_rating: 1500
+      regression_factor: 0.1  # Season start regression
+
+  # Dixon-Coles Model
+  dixon_coles:
+    enabled: true
+    weight: 0.25
+    parameters:
+      rho: -0.13
+      time_decay: 0.005
+      optimization_method: "L-BFGS-B"
+
+  # XGBoost Model
+  xgboost:
+    enabled: true
+    weight: 0.30
+    parameters:
+      n_estimators: 200
+      max_depth: 6
+      learning_rate: 0.05
+      subsample: 0.8
+      colsample_bytree: 0.8
+      min_child_weight: 3
+      objective: "multi:softprob"
+      eval_metric: "mlogloss"
+
+  # LightGBM Model (Alternative)
+  lightgbm:
+    enabled: false
+    weight: 0.0
+    parameters:
+      n_estimators: 200
+      max_depth: 6
+      learning_rate: 0.05
+      num_leaves: 31
+
+  # Neural Network Model
+  neural_net:
+    enabled: false
+    weight: 0.0
+    parameters:
+      hidden_layers: [128, 64, 32]
+      dropout: 0.3
+      learning_rate: 0.001
+      epochs: 100
+      batch_size: 32
+
+# Ensemble Configuration
+ensemble:
+  method: weighted_average  # weighted_average, stacking, voting
+  meta_learner: logistic_regression
+  confidence_threshold: 0.55
+  min_model_agreement: 0.6
+
+# Feature Engineering
+features:
+  lookback_matches: 10
+  h2h_lookback: 20
+  time_decay: true
+  
+  categories:
+    - form_features
+    - h2h_features
+    - goal_features
+    - venue_features
+    - xg_features
+    - team_strength
+    - player_features
+
+# Training Configuration
+training:
+  test_size: 0.2
+  cv_folds: 5
+  cv_method: time_series  # time_series, stratified
+  random_state: 42
+  
+  hyperparameter_tuning:
+    enabled: true
+    method: optuna  # optuna, grid_search, random_search
+    n_trials: 100
+
+# Evaluation Metrics
+evaluation:
+  metrics:
+    - accuracy
+    - log_loss
+    - brier_score
+    - rps  # Ranked Probability Score
+    - calibration_error
+    - roi
+    - sharpe_ratio

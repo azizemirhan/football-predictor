@@ -1,0 +1,53 @@
+version: '3.8'
+
+# Production overrides
+services:
+  web:
+    build:
+      args:
+        NODE_ENV: production
+    environment:
+      NODE_ENV: production
+    restart: always
+
+  scraper:
+    restart: always
+
+  ai-engine:
+    restart: always
+
+  # Add monitoring in production
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fp_prometheus
+    restart: always
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - fp_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: fp_grafana
+    restart: always
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - fp_network
+
+volumes:
+  prometheus_data:
+  grafana_data:

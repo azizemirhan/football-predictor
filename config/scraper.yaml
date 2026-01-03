@@ -1,0 +1,100 @@
+# ============================================================================
+# Scraper Configuration
+# ============================================================================
+
+scraper:
+  # Rate limiting settings
+  rate_limit:
+    requests_per_minute: 30
+    delay_between_requests: 2.0
+    max_retries: 3
+    retry_delay: 5.0
+
+  # Proxy settings
+  proxy:
+    enabled: false
+    rotation: round_robin  # round_robin, random, sticky
+    health_check_interval: 300
+    providers: []
+
+  # Browser settings (Playwright)
+  browser:
+    headless: true
+    timeout: 30000
+    viewport:
+      width: 1920
+      height: 1080
+
+  # Data sources configuration
+  sources:
+    flashscore:
+      enabled: true
+      base_url: "https://www.flashscore.com"
+      schedule: "*/15 * * * *"  # Every 15 minutes
+      priority: high
+      data_types:
+        - live_scores
+        - match_stats
+        - lineups
+        - standings
+
+    sofascore:
+      enabled: true
+      base_url: "https://www.sofascore.com"
+      schedule: "0 */2 * * *"  # Every 2 hours
+      priority: high
+      data_types:
+        - xg_stats
+        - player_ratings
+        - heat_maps
+        - shot_maps
+
+    transfermarkt:
+      enabled: true
+      base_url: "https://www.transfermarkt.com"
+      schedule: "0 6 * * *"  # Daily at 6 AM
+      priority: medium
+      data_types:
+        - market_values
+        - transfers
+        - injuries
+        - suspensions
+
+    oddschecker:
+      enabled: true
+      base_url: "https://www.oddschecker.com"
+      schedule: "*/5 * * * *"  # Every 5 minutes
+      priority: high
+      data_types:
+        - match_odds
+        - odds_movements
+
+    # News sources
+    news:
+      bbc_sport:
+        enabled: true
+        base_url: "https://www.bbc.com/sport/football"
+        schedule: "*/30 * * * *"
+      sky_sports:
+        enabled: true
+        base_url: "https://www.skysports.com/football"
+        schedule: "*/30 * * * *"
+      guardian:
+        enabled: true
+        base_url: "https://www.theguardian.com/football"
+        schedule: "0 * * * *"
+
+# Leagues to track
+leagues:
+  premier_league:
+    id: "premier-league"
+    country: "England"
+    flashscore_id: "england/premier-league"
+    sofascore_id: 17
+    enabled: true
+
+# Data retention
+retention:
+  raw_data_days: 30
+  processed_data_days: 365
+  predictions_days: 730

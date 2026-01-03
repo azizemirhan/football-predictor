@@ -1,0 +1,60 @@
+# ============================================================================
+# Notifications Configuration
+# ============================================================================
+
+notifications:
+  enabled: true
+  
+  channels:
+    telegram:
+      enabled: true
+      bot_token: "${TELEGRAM_BOT_TOKEN}"
+      chat_id: "${TELEGRAM_CHAT_ID}"
+      
+    discord:
+      enabled: false
+      webhook_url: "${DISCORD_WEBHOOK_URL}"
+    
+    email:
+      enabled: false
+      smtp_host: "smtp.gmail.com"
+      smtp_port: 587
+      username: "${EMAIL_USERNAME}"
+      password: "${EMAIL_PASSWORD}"
+      from_address: "alerts@footballpredictor.com"
+      to_addresses: []
+
+  # Alert types
+  alerts:
+    value_bet:
+      enabled: true
+      min_edge: 0.05
+      min_confidence: 0.6
+      channels: [telegram]
+      
+    high_value_bet:
+      enabled: true
+      min_edge: 0.10
+      min_confidence: 0.7
+      channels: [telegram, discord]
+      
+    match_start:
+      enabled: false
+      minutes_before: 30
+      channels: [telegram]
+      
+    odds_movement:
+      enabled: true
+      min_change_percent: 10
+      channels: [telegram]
+      
+    system_error:
+      enabled: true
+      channels: [telegram]
+
+  # Quiet hours (no notifications)
+  quiet_hours:
+    enabled: true
+    start: "23:00"
+    end: "07:00"
+    timezone: "Europe/Istanbul"
