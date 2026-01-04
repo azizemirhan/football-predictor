@@ -1,0 +1,646 @@
+Futbol Analitiğinde İleri Düzey Stokastik Modelleme, Algoritmik Tahmin ve Finansal Optimizasyon: Kapsamlı Bir Araştırma Raporu
+Yönetici Özeti
+Bu araştırma raporu, modern futbol analitiğinin teorik ve pratik çerçevesini, matematiksel temellerden başlayarak en son yapay zeka uygulamalarına kadar derinlemesine incelemektedir. Çalışma, futbolun doğasındaki yüksek varyansı ve düşük skorlu yapısını modellemek için kullanılan istatistiksel dağılımları (Poisson, Negatif Binom, Bivariate Poisson) ve bunların parametre tahmin yöntemlerini (Maksimum Olabilirlik Kestirimi - MLE) irdelemektedir. Dixon-Coles modelinin zaman ağırlıklı optimizasyonundan, Google DeepMind'ın TacticAI projesindeki Geometrik Derin Öğrenme (Geometric Deep Learning) mimarilerine kadar uzanan geniş bir yelpaze ele alınmıştır. Ayrıca, model çıktılarının finansal piyasalarda (bahis) nasıl değerlendirileceği, Kelly Kriteri'nin çoklu bahis senaryolarındaki türevleri ve tahmin becerisinin istatistiksel geçerliliğini ölçen Archie Score gibi metrikler üzerinden analiz edilmiştir. Rapor, veri bilimciler, kulüp analistleri ve kantitatif bahisçiler için akademik bir başvuru kaynağı niteliğindedir.
+
+1. Giriş: Deterministik Olmayan Bir Sistemin Modellenmesi
+Futbol, yapısı gereği sürekli akışa sahip (fluid), düşük skorlu ve olayların birbirine bağımlı olduğu kaotik bir sistemdir. Geleneksel istatistiksel yaklaşımlar, futbolu kesikli olayların toplamı olarak görme eğilimindeyken, modern analitik bu olayların mekansal ve zamansal bağlamını (spatiotemporal context) ön plana çıkarmaktadır. Veri toplama teknolojilerindeki evrim, temel olay verisinden (event data), saniyede 25 kare oyuncu konumunu izleyen optik izleme verisine (tracking data) geçişi sağlamış, bu da modellerin karmaşıklığını ve tahmin gücünü artırmıştır.   
+
+Bu çalışmanın temel amacı, futbol maç sonuçlarını ve oyun içi olayları tahmin etmek için kullanılan matematiksel modellerin evrimini ve bu modellerin başarısını belirleyen öznitelik mühendisliği (feature engineering) süreçlerini ortaya koymaktır. Ayrıca, tahmin edilen olasılıkların piyasa oranları (implied probabilities) ile karşılaştırılması sonucu ortaya çıkan "değer" kavramı, risk yönetimi perspektifinden ele alınacaktır.
+
+2. Matematiksel Temeller ve Skor Modelleme Teorisi
+Futbol analitiğinin merkezinde, maç sonucunu belirleyen gollerin dağılımını doğru bir şekilde modelleme problemi yatar. Goller, "nadir olaylar" (rare events) sınıfına girdiği için, tarihsel olarak Poisson dağılımı bu alandaki en temel yapı taşı olmuştur.
+
+2.1. Bağımsız Poisson Süreçleri ve Varsayımsal Sınırlılıklar
+En temel yaklaşım, bir futbol maçında ev sahibi (X) ve deplasman (Y) takımlarının attığı gollerin, birbirinden bağımsız iki Poisson süreci tarafından üretildiğini varsaymaktır. Bu varsayım altında, i takımının j takımına karşı oynadığı bir maçta skor olasılığı şu şekilde formüle edilir:
+
+P(X 
+k
+​	
+ =x,Y 
+k
+​	
+ =y)= 
+x!
+e 
+−λ 
+k
+​	
+ 
+ λ 
+k
+x
+​	
+ 
+​	
+ × 
+y!
+e 
+−μ 
+k
+​	
+ 
+ μ 
+k
+y
+​	
+ 
+​	
+ 
+Burada λ 
+k
+​	
+  ve μ 
+k
+​	
+ , sırasıyla ev sahibi ve deplasman takımının beklenen gol sayılarını (scoring intensities) ifade eder. Bu parametreler genellikle log-link fonksiyonu kullanılarak bir Genelleştirilmiş Lineer Model (GLM) üzerinden şu şekilde modellenebilir:   
+
+log(λ 
+k
+​	
+ )=γ+α 
+i(k)
+​	
+ +β 
+j(k)
+​	
+ 
+log(μ 
+k
+​	
+ )=α 
+j(k)
+​	
+ +β 
+i(k)
+​	
+ 
+Bu denklemde γ ev sahibi avantajını (home advantage), α takımın hücum gücünü ve β takımın savunma zafiyetini temsil eder. Ancak, bu "Bağımsız Poisson" (Independent Poisson) modeli, futbolun doğasındaki iki temel fenomeni açıklamakta yetersiz kalır:   
+Bağımlılık (Dependence): Bir maçtaki gol sayıları tamamen bağımsız değildir; bir takımın gol atması, oyunun temposunu ve rakibin stratejisini değiştirerek diğer takımın gol atma olasılığını etkiler.
+Düşük Skorlu Beraberliklerin Eksik Tahmini: Ampirik veriler, 0-0 ve 1-1 gibi düşük skorlu beraberliklerin, bağımsız Poisson modelinin öngördüğünden daha sık gerçekleştiğini göstermektedir.   
+2.2. Dixon-Coles Modeli: Bağımlılık ve Düzeltme Mekanizması
+Mark Dixon ve Stuart Coles (1997), bağımsız Poisson modelinin eksikliklerini gidermek için literatürdeki en etkili düzeltme yöntemlerinden birini önermişlerdir. Bu model, düşük skorlu sonuçlar (0-0, 1-0, 0-1, 1-1) için ortak olasılık kütle fonksiyonuna bir τ (tau) düzeltme faktörü ve bir korelasyon parametresi ρ (rho) ekler.   
+
+Düzeltilmiş olasılık fonksiyonu şu şekildedir:
+
+P(X=x,Y=y)=τ 
+ρ
+​	
+ (x,y)⋅ 
+x!
+e 
+−λ
+ λ 
+x
+ 
+​	
+ ⋅ 
+y!
+e 
+−μ
+ μ 
+y
+ 
+​	
+ 
+Burada τ 
+ρ
+​	
+ (x,y) fonksiyonu, skorların (0,0), (0,1), (1,0) ve (1,1) olduğu durumlar için olasılıkları yeniden dağıtır:
+
+τ 
+ρ
+​	
+ (x,y)= 
+⎩
+
+⎨
+
+⎧
+​	
+  
+1−λμρ
+1+λρ
+1+μρ
+1−ρ
+1
+​	
+  
+e 
+g
+˘
+​	
+ er x=0,y=0
+e 
+g
+˘
+​	
+ er x=0,y=1
+e 
+g
+˘
+​	
+ er x=1,y=0
+e 
+g
+˘
+​	
+ er x=1,y=1
+di 
+g
+˘
+​	
+ er durumlarda
+​	
+ 
+Bu formülasyonda ρ parametresi, skorlar arasındaki bağımlılığın şiddetini kontrol eder. ρ genellikle pozitif bir değer alır, bu da 0-0 ve 1-1 olasılıklarını artırırken, 1-0 ve 0-1 olasılıklarını azaltarak modelin beraberlik tahminlerini iyileştirir. ρ parametresinin tahmini, genellikle bağımsız Poisson parametreleri (α,β,γ) tahmin edildikten sonra ikinci bir optimizasyon aşamasında gerçekleştirilir veya tam modelin (full likelihood) bir parçası olarak eşzamanlı hesaplanır.   
+
+2.2.1. Zaman Ağırlıklandırma (Time Decay) ve ξ Parametresi
+Takımların güç parametreleri (α,β) statik değildir; form durumları, sakatlıklar ve transferler nedeniyle zamanla değişir. Dixon-Coles modeli, bu dinamik yapıyı yakalamak için olabilirlik fonksiyonuna (likelihood function) bir zaman ağırlıklandırma bileşeni ekler. Ağırlık fonksiyonu genellikle üstel azalan bir yapıdadır:
+
+ϕ(t)=exp(−ξ⋅t)
+Burada t, maçın oynandığı tarihten bugüne geçen süreyi (gün veya hafta), ξ (ksi) ise unutma faktörünü temsil eder. Opisthokonta tarafından yapılan geniş çaplı analizlerde, modern futbol verisi (2005-2014) için optimum ξ değerinin, Dixon ve Coles'un 1997'deki orijinal bulgularından (0.0065) daha düşük olduğu saptanmıştır. İngiltere Premier Ligi için optimal ξ değeri yaklaşık 0.0018 (gün bazlı) olarak bulunmuştur, bu da modelin yaklaşık 1-2 yıllık bir "efektif hafızaya" sahip olması gerektiğini gösterir. ξ değerinin çok yüksek olması (hızlı unutma), modelin gürültüye (noise) aşırı tepki vermesine (overfitting) yol açarken, çok düşük olması (yavaş unutma) takımın güncel form durumunun yakalanamamasına neden olur.   
+
+2.3. Bivariate (İki Değişkenli) Poisson Modeli ve Kovaryans Yapısı
+Dixon-Coles modeli, bağımsız Poisson dağılımına yapılan pragmatik bir "düzeltme" iken, Bivariate Poisson (BP) modeli teorik olarak daha tutarlı bir bağımlılık yapısı sunar. Bu model, trivariate reduction yöntemiyle oluşturulur; yani X ve Y skorları, üç bağımsız Poisson sürecinin (X 
+1
+​	
+ ,X 
+2
+​	
+ ,X 
+3
+​	
+ ) lineer kombinasyonları olarak modellenir :   
+
+X=X 
+1
+​	
+ +X 
+3
+​	
+ ,Y=X 
+2
+​	
+ +X 
+3
+​	
+ 
+X 
+1
+​	
+ ∼Pois(λ 
+1
+​	
+ ),X 
+2
+​	
+ ∼Pois(λ 
+2
+​	
+ ),X 
+3
+​	
+ ∼Pois(λ 
+3
+​	
+ )
+Burada X 
+3
+​	
+ , her iki takımın skoruna da katkı sağlayan ortak şokları (common shocks) temsil eder ve iki takımın skorları arasındaki kovaryansı (Cov(X,Y)=λ 
+3
+​	
+ ) oluşturur. Karlis ve Ntzoufras (2003), bu modelin özellikle beraberlik sayılarının tahmininde standart modellerden daha başarılı olduğunu, ancak hesaplama maliyetinin (computational cost) daha yüksek olduğunu belirtmiştir. Bivariate Poisson dağılımının olasılık kütle fonksiyonu, Dixon-Coles'un aksine kapalı bir formda değildir ve sonsuz toplam serisi içerir, bu da parametre tahminini (EM algoritması veya Newton-Raphson ile) zorlaştırır.   
+
+2.4. Zero-Inflated (Sıfır-Şişirilmiş) ve Hurdle Modelleri
+Bazı futbol liglerinde (örneğin İtalya Serie B, Yunanistan Ligi veya alt ligler), gol atamama durumu (sıfır skoru), Poisson dağılımının açıklayabileceğinden daha sık gerçekleşir. Bu duruma "sıfır enflasyonu" (zero-inflation) adı verilir. Zero-Inflated Poisson (ZIP) modelleri, süreci iki aşamalı bir mekanizma ile açıklar :   
+Yapısal Sıfır (Structural Zero): Takımın gol atma kapasitesinin olmadığı veya aşırı defansif bir strateji izlediği durum (Bernoulli süreci ile modellenir).
+Sayma Süreci (Count Process): Takımın gol atma potansiyeli olduğu durumda, kaç gol atacağı (Poisson süreci).
+Olasılık fonksiyonu şu şekildedir:
+
+P(Y=y)=πI(y=0)+(1−π)f 
+Pois
+​	
+ (y∣λ)
+Burada π, ekstra sıfır olasılığıdır. Araştırmalar, savunma ağırlıklı liglerde ZIP ve Zero-Modified Poisson (ZMP) modellerinin, standart Poisson modellerine göre Brier Score ve Log-Loss metriklerinde daha iyi performans gösterdiğini kanıtlamıştır. Ancak, yüksek skorlu liglerde (Bundesliga gibi), bu modellerin getirdiği karmaşıklık her zaman daha iyi tahmin gücüyle sonuçlanmayabilir.   
+
+3. Feature Engineering (Özellik Mühendisliği) ve Veri Mimarisi
+Matematiksel modelin iskeletini oluşturduktan sonra, modelin başarısını belirleyen en kritik faktör, modele beslenen verinin kalitesi ve türetilen özniteliklerin (features) ayrım gücüdür.
+
+3.1. Ekonomik ve Piyasa Tabanlı Öznitelikler
+Akademik literatür, takım başarısının en güçlü belirleyicilerinden birinin oyuncu kalitesi olduğunu ve bunun en iyi "piyasa değeri" (market value) ile temsil edildiğini göstermektedir. Transfermarkt verileri, "kitlelerin bilgeliği" (wisdom of crowds) prensibiyle oluşturulduğu için, oyuncu maaşları ve transfer ücretleri ile yüksek korelasyon gösterir.   
+
+Analizler, toplam kadro değerinin (Squad Value) lig sonu puanlarıyla 0.94'e varan bir korelasyona sahip olduğunu göstermektedir. Model girdisi olarak ham piyasa değeri yerine, genellikle şu türetilmiş özellikler kullanılır:   
+Logaritmik Piyasa Değeri Farkı: ln(De 
+g
+˘
+​	
+ er 
+Ev
+​	
+ )−ln(De 
+g
+˘
+​	
+ er 
+Dep
+​	
+ ). Bu, finansal gücün marjinal getirisinin azalmasını (diminishing returns) modeller.
+Göreceli Kadro Değeri: Takımın kadro değerinin lig ortalamasına oranı.
+3.2. Dinamik Rating Sistemleri: Elo ve Türevleri
+Satranç için geliştirilen Elo rating sistemi, futbola uyarlandığında en güçlü öngörücü değişkenlerden biri haline gelir. Standart Elo güncelleme kuralı şöyledir:
+
+R 
+yeni
+​	
+ =R 
+eski
+​	
+ +K⋅(W−W 
+e
+​	
+ )
+Futbol için geliştirilen Elo türevlerinde (örneğin ClubElo veya World Football Elo Ratings), sistem şu modifikasyonlarla zenginleştirilir :   
+Margin of Victory (MoV) Çarpanı: Sadece galibiyeti değil, gol farkını da ödüllendirmek için K katsayısı, gol farkının bir fonksiyonu (genellikle ln(GD+1)) ile çarpılır. Bu, 5-0'lık bir galibiyetin, 1-0'lık şans eseri bir galibiyetten daha fazla bilgi taşıdığını modele tanıtır.   
+Ev Sahibi Avantajı: Beklenen sonuç (W 
+e
+​	
+ ) hesaplanırken, ev sahibi takımın rating'ine sabit bir puan (örneğin +100 Elo puanı) eklenir.   
+Turnuva Ağırlıklandırması: Dünya Kupası finalleri gibi yüksek önem derecesine sahip maçlarda K faktörü artırılarak, bu maçların rating üzerindeki etkisi yükseltilir.
+3.3. Taktiksel Özniteliklerin Önem Sıralaması (SHAP Analizi)
+Makine öğrenmesi modellerinde (örneğin MLP veya XGBoost) hangi özelliklerin maç sonucunu en çok etkilediğini anlamak için SHAP (SHapley Additive exPlanations) değerleri kullanılır. Yapılan kapsamlı bir çalışmada, özelliklerin önem sıralaması şu şekilde belirlenmiştir :   
+HHWR (Head-to-Head Home Win Rate): Ev sahibi takımın rakibine karşı tarihsel üstünlüğü. SHAP analizlerinde en yüksek etkiye sahip özellik olarak öne çıkmıştır.
+AST (Away Team Shots on Target): Deplasman takımının isabetli şut sayısı, deplasman galibiyetini tahmin etmede en güçlü oyun içi metriktir.
+HST (Home Team Shots on Target): Ev sahibi galibiyeti için kritik göstergedir.
+OHWR (Overall Home Win Rate): Takımın genel kazanma alışkanlığı.
+Bu analizler, toplam şut veya korner sayısı gibi "hacim" (volume) metriklerinin, isabetli şut veya tarihsel üstünlük gibi "kalite" metriklerine göre daha düşük tahmin gücüne sahip olduğunu göstermektedir.   
+
+4. Beklenen Gol (xG) Modellemesi ve Şut Kalitesi
+Modern futbol analitiğinin mihenk taşı olan xG (Expected Goals), bir şutun gol olma olasılığını $$ aralığında nicelleştirir. xG, maç sonucunu tahmin etmede, atılan gerçek gol sayısından daha güvenilir bir "gelecek göstergesi" (predictor of future performance) olarak kabul edilir, çünkü goller yüksek varyans içerirken, xG yaratılan pozisyonların kalitesini ölçer.   
+
+4.1. Model Girdileri ve Veri Sağlayıcı Farklılıkları
+xG modelleri, lojistik regresyon veya gradient boosting (XGBoost) algoritmaları kullanılarak eğitilir. Temel girdiler şunlardır:
+Mekansal Veriler: Kaleye olan mesafe ve açı.
+Bağlamsal Veriler: Şutun vücutla (kafa/ayak) atılması, oyunun tipi (açık oyun, frikik, korner), asistin tipi (orta, ara pas).
+İleri Düzey Veriler (Freeze Frames): StatsBomb gibi sağlayıcılar, şut anında kalecinin ve defans oyuncularının konumlarını da modele dahil eder (Goalkeeper Impact, Defensive Pressure). Bu, "boş kale" şutları ile "kalabalık savunma" şutları arasındaki xG farkını dramatik şekilde açar.   
+Veri sağlayıcılar arasında modelleme farklılıkları mevcuttur. Örneğin, Understat modelleri genellikle StatsBomb ve Opta'ya kıyasla, özellikle düşük olasılıklı şutlarda biraz daha yüksek xG değerleri üretme eğilimindedir. StatsBomb'un 2022 sonrası güncellemeleri, şutun yüksekliği (shot height) ve topun hızı gibi dikey boyut verilerini de (shot execution) modele katarak hassasiyeti artırmıştır.   
+
+4.2. xG'nin Tahmin Gücü ve Regresyon
+xG'nin bir tahmin aracı olarak gücü, "kitlelerin regresyonu" (regression to the mean) prensibine dayanır. Bir takım, kısa vadede xG'sinin çok üzerinde gol atabilir (overperformance), ancak uzun vadede gerçek gol sayılarının xG üretimine yakınsaması beklenir. Bu nedenle, xG performansı ile gerçek puanlar arasındaki fark (Expected Points vs. Actual Points), bahisçiler için "değeri bilinmeyen" (undervalued) veya "aşırı değerli" (overvalued) takımları tespit etmede kullanılır. Araştırmalar, xG'ye dayalı simülasyonların, sadece gol sayılarına dayalı modellerden daha düşük hata oranlarına (RMSE) sahip olduğunu göstermektedir.   
+
+5. İleri Düzey Spatiotemporal Modelleme: xT, Pitch Control ve GNN
+Futbol maçının %98'inde top kaleye şut olarak gitmez. Topun, sahanın farklı bölgelerinde dolaştığı bu "hazırlık" (buildup) aşamasını modellemek için, şut odaklı xG'den daha kapsamlı metriklere ihtiyaç vardır.
+
+5.1. Expected Threat (xT): Tehdit Beklentisi
+Karun Singh tarafından geliştirilen Expected Threat (xT) modeli, sahadaki topa sahip olma durumunun (possession state) gol olasılığını nasıl değiştirdiğini ölçer. xT, pas ve dripling gibi eylemleri, topu daha "tehditkar" bir bölgeye taşıyıp taşımadıklarına göre değerlendirir.   
+
+Matematiksel Formülasyon ve Çözüm: Saha, M×N (örneğin 16×12) boyutunda bir ızgaraya bölünür. Her (x,y) hücresinin değeri (V 
+x,y
+​	
+ ), o noktadan şut atma veya topu taşıma kararlarının beklenen getirisidir:
+
+V 
+x,y
+​	
+ =s 
+x,y
+​	
+ ⋅g 
+x,y
+​	
+ +m 
+x,y
+​	
+ ⋅ 
+z,w
+∑
+​	
+ T 
+(x,y)→(z,w)
+​	
+ V 
+z,w
+​	
+ 
+Burada:
+s 
+x,y
+​	
+ : O bölgeden şut çekme olasılığı.
+g 
+x,y
+​	
+ : Şut çekilirse gol olma olasılığı (xG).
+m 
+x,y
+​	
+ : Topu taşıma (pas/sürüş) olasılığı.
+T 
+(x,y)→(z,w)
+​	
+ : Topun (x,y) bölgesinden (z,w) bölgesine geçiş olasılığı (Transition Matrix).
+Bu denklem sistemi özyinelemeli (recursive) bir yapıdadır çünkü bir bölgenin değeri, hedef bölgelerin değerine bağlıdır. Çözüm için genellikle yinelemeli algoritmalar kullanılır, ancak modern yaklaşımlar bunu lineer cebir problemi olarak ($ \mathbf{x} = (\mathbf{I} - \mathbf{M}\mathbf{T})^{-1}\mathbf{b} $) formüle edip tek adımda çözmektedir. Bu yöntem hesaplama süresini ciddi oranda düşürür.   
+
+5.2. Pitch Control (Saha Kontrolü) Modelleri
+Pitch Control, sahanın herhangi bir noktasının hangi takımın kontrolünde olduğunu (top o noktaya atılırsa kimin kazanacağını) olasılıksal olarak modeller. Basit Voronoi diyagramlarının aksine, modern Pitch Control modelleri oyuncuların hızını, ivmesini ve yönünü hesaba katan fizik tabanlı hareket modelleri kullanır.   
+
+William Spearman'ın (2018) geliştirdiği modelde, bir oyuncunun x noktasına ulaşma zamanı t ve topun o noktaya ulaşma zamanı entegre edilir. Bir noktanın kontrolü (PPC), o noktaya rakibinden önce ulaşma olasılığı üzerinden hesaplanır:
+
+PC(x,y)= 
+1+exp(−α(T 
+def
+​	
+ −T 
+att
+​	
+ ))
+1
+​	
+ 
+Bu modeller, "alan yaratma" (space creation) ve "pas kanalı kapama" gibi taktiksel kavramların sayısallaştırılmasını sağlar.
+
+5.3. Graph Neural Networks (GNN) ve TacticAI
+Futbol, oyuncuların düğüm (node), pasların veya etkileşimlerin kenar (edge) olduğu dinamik bir çizge (graph) olarak en iyi şekilde temsil edilebilir. Graph Neural Networks (GNN), oyuncuların birbirleriyle olan mekansal ve anlamsal ilişkilerini öğrenmek için kullanılır.   
+
+Google DeepMind TacticAI: TacticAI projesi, özellikle köşe vuruşlarını analiz etmek için GNN mimarisini kullanır. Model, oyuncu pozisyonlarını, hız vektörlerini ve fiziksel özelliklerini (boy, kilo) düğüm öznitelikleri (node features) olarak alır. Kenar öznitelikleri ise takım arkadaşı/rakip ilişkisini kodlar.   
+Geometrik Derin Öğrenme: TacticAI, sahanın simetrisini (yansıma değişmezliği) kullanan "Group Equivariant Convolutional Networks" kullanarak veri verimliliğini artırır. Model, köşe vuruşunda topun kime gideceğini (receiver prediction) ve şut atılıp atılmayacağını yüksek doğrulukla tahmin eder.   
+Uygulama: Bu modeller, teknik direktörlere "Eğer savunma oyuncusu X şurada dursaydı, gol olasılığı ne olurdu?" gibi karşı-olgusal (counterfactual) soruların cevabını verebilir.
+6. Model Değerlendirme ve Validasyon Metrikleri
+Olasılıksal tahmin modellerinin başarısı, sadece doğruluk (accuracy) oranıyla değil, tahmin edilen olasılıkların kalitesini ölçen "Proper Scoring Rules" ile değerlendirilmelidir.
+
+6.1. Brier Score ve Bileşenlerine Ayrıştırma
+Brier Score, ikili sonuçlar (Gol/Gol Değil veya Galibiyet/Galibiyet Değil) için en yaygın kullanılan metriktir. Tahmin edilen olasılık p ve gerçekleşen sonuç o∈{0,1} olmak üzere:
+
+BS= 
+N
+1
+​	
+ ∑(p 
+i
+​	
+ −o 
+i
+​	
+ ) 
+2
+ 
+Murphy (1973), Brier Score'u üç temel bileşene ayırarak modelin karakteristiğini analiz etmeyi önermiştir :   
+
+Brier Score=Reliability−Resolution+Uncertainty
+Reliability (Güvenilirlik/Kalibrasyon): Tahminlerin gerçek frekanslarla uyumu. Örneğin, modelin %70 ihtimal verdiği olayların %70'inde gerçekleşmesi gerekir. Bu terimin düşük olması istenir.
+Resolution (Çözünürlük): Modelin farklı sonuçları birbirinden ayırma yeteneği. Her maça %50 demek (belirsizlik durumunda) güvenilir olabilir ama çözünürlüğü sıfırdır. Modelin %90 ve %10 gibi keskin tahminler yapıp haklı çıkması çözünürlüğü artırır. Bu terimin yüksek olması istenir.
+Uncertainty (Belirsizlik): Olayın doğasından kaynaklanan varyans (  
+o
+ˉ
+ (1− 
+o
+ˉ
+ ) ). Bu terim modelden bağımsızdır.
+6.2. Ranked Probability Score (RPS)
+Futbol gibi sıralı (ordinal) sonuçların (Ev Sahibi > Beraberlik > Deplasman) olduğu durumlarda RPS, Brier Score'dan daha bilgilendiricidir. RPS, kümülatif dağılım fonksiyonları arasındaki farkın karesini ölçer.   
+Önemi: Eğer maç sonucu "Ev Sahibi Galibiyeti" ise, modelin "Beraberlik" tahminine verdiği yüksek olasılık, "Deplasman Galibiyeti" tahminine verdiği yüksek olasılıktan daha az cezalandırılır. Çünkü beraberlik, ev sahibi galibiyetine "daha yakın" bir sonuçtur. Bu metrik, Dixon-Coles gibi modellerin optimizasyonunda sıklıkla hedef fonksiyon (loss function) olarak kullanılır.
+7. Value Betting ve Finansal Optimizasyon Stratejileri
+Analitik modellerin "gerçek dünya" testi, bahis piyasalarında kâr edip etmediğidir. Piyasayı yenmek (beating the market), sadece maç sonucunu bilmek değil, piyasanın belirlediği olasılıklardan (implied probability) daha doğru olasılıklar üretmektir.
+
+7.1. Closing Line Value (CLV) ve Etkin Piyasa Hipotezi
+Profesyonel bahisçiler için en önemli performans göstergesi (KPI), kısa vadeli kârdan ziyade Closing Line Value (CLV)'dir. CLV, alınan bahisin oranının, maç başlama anındaki kapanış oranına (closing odds) kıyasla ne kadar değerli olduğunu ölçer.   
+Mantık: Kapanış oranları, tüm piyasa bilgisini, sakatlık haberlerini ve büyük bahisçilerin (sharps) görüşlerini içerdiği için "gerçek olasılığa" en yakın tahmin kabul edilir.
+Formül: CLV %=( 
+Kapanı 
+s
+¸
+​	
+  Oranı
+Alınan Oran
+​	
+ −1)×100. Pozitif CLV üretmek, bahisçinin piyasadan daha hızlı veya daha doğru bilgiye sahip olduğunu kanıtlar ve uzun vadeli kârın en güvenilir öncüsüdür.
+7.2. Kelly Kriteri ve Portföy Yönetimi
+Modelin bir "değer" (edge) bulduğu durumda, ne kadar bahis yapılacağını belirlemek için Kelly Kriteri kullanılır. Tek bir bahis için optimal bahis oranı (f 
+∗
+ ):
+
+f 
+∗
+ = 
+b
+bp−q
+​	
+ 
+Burada b net oran (decimal odds - 1), p kazanma olasılığı, q kaybetme olasılığıdır (1−p). Birden fazla maça aynı anda bahis yapıldığında (simultaneous bets), olaylar arasındaki korelasyonu veya bütçe kısıtlarını dikkate alan çok boyutlu optimizasyon gereklidir. Bu durumda amaç fonksiyonu, beklenen logaritmik büyümeyi maksimize etmektir :   
+
+maximize E=∑p 
+i
+​	
+ ln(1+∑f 
+j
+​	
+ r 
+ij
+​	
+ )
+Pratikte, model belirsizliğini (model uncertainty) yönetmek ve iflas riskini (ruin risk) düşürmek için genellikle "Fractional Kelly" (örneğin Kelly/4 veya Kelly/8) stratejisi uygulanır.   
+
+7.3. İstatistiksel Anlamlılık: Archie Score ve t-Score
+Kısa vadeli bahis başarısının şanstan mı yoksa beceriden mi kaynaklandığını test etmek için Archie Score kullanılır. Bu metrik, Chi-kare dağılımına dayanır :   
+
+Archie= 
+E(1−E/N)
+N(R−E) 
+2
+ 
+​	
+ 
+N: Toplam bahis sayısı.
+R: Gerçekleşen kazanan bahis sayısı (Actual returns).
+E: Beklenen kazanan bahis sayısı (Piyasa olasılıklarının toplamı).
+Archie skorunun yüksek olması (genellikle > 2 veya > 4), elde edilen sonuçların şansla açıklanma olasılığının düşük olduğunu (istatistiksel olarak anlamlı bir sapma) gösterir. Benzer şekilde, ROI (Return on Investment) üzerindeki t-testi (t-score), kârın standart sapmasını ve bahis sayısını dikkate alarak p-değeri üretir.   
+
+8. Yazılım Uygulamaları ve Kütüphaneler
+Bu teorik modellerin uygulanması için Python ve R ekosistemlerinde güçlü kütüphaneler geliştirilmiştir.
+R: goalmodel paketi, Dixon-Coles, Bivariate Poisson ve Negatif Binom modellerini uygulamak için endüstri standardıdır. predict_btts ve rho.ml gibi fonksiyonlarla özelleşmiş tahminler yapabilir.   
+Python: penaltyblog kütüphanesi, Dixon-Coles ve Poisson modellerinin Cython ile optimize edilmiş hızlı versiyonlarını sunar. Ayrıca socceraction ve kloppy, xT hesaplamaları ve takip verisi işleme (tracking data processing) için kullanılır.   
+9. Sonuç
+Futbol analitiği, basit frekans analizlerinden, oyuncu etkileşimlerini grafikler üzerinde öğrenen derin sinir ağlarına (GNN) evrilmiştir. Dixon-Coles gibi istatistiksel modeller, bahis piyasalarında temel bir referans noktası (baseline) oluştururken, TacticAI gibi sistemler oyunun taktiksel kodlarını çözmektedir. Gelecek, bu iki dünyanın birleştiği; yani istatistiksel titizliğin (Brier Score, Kelly Kriteri) ve yapay zekanın örüntü tanıma kapasitesinin (GNN, Transformer) entegre edildiği hibrit modellerde yatmaktadır. Bu entegrasyon, futbolun belirsizliğini tamamen ortadan kaldırmasa da, onu yönetilebilir ve ölçülebilir bir risk profiline dönüştürmektedir.
+
+
+discovery.researcher.life
+A Deep Learning Approach Based on Interpretable Feature Importance for Predicting Sports Results - R Discovery
+Yeni pencerede açılır
+
+researchgate.net
+(PDF) TacticAI: an AI assistant for football tactics - ResearchGate
+Yeni pencerede açılır
+
+emergentmind.com
+Bivariate Dixon and Coles Model in Football - Emergent Mind
+Yeni pencerede açılır
+
+dashee87.github.io
+Predicting Football Results With Statistical Modelling: Dixon-Coles and Time-Weighting
+Yeni pencerede açılır
+
+mdpi.com
+Predicting Football Match Results Using a Poisson Regression Model - MDPI
+Yeni pencerede açılır
+
+pena.lt
+Football Prediction Models: Which Ones Work the Best? - PenaltyBlog
+Yeni pencerede açılır
+
+reddit.com
+Dixon-Coles Model for Soccer Predictions (with Python code) : r/SoccerBetting - Reddit
+Yeni pencerede açılır
+
+opisthokonta.net
+The Dixon-Coles model for predicting football matches in R (part 3) - opisthokonta.net
+Yeni pencerede açılır
+
+opisthokonta.net
+Dixon-Coles model | opisthokonta.net
+Yeni pencerede açılır
+
+www2.stat-athens.aueb.gr
+Analysis of sports data by using bivariate Poisson models
+Yeni pencerede açılır
+
+www2.stat-athens.aueb.gr
+Bivariate Poisson and Diagonal Inflated Bivariate Poisson Regression Models in R 1 Introduction
+Yeni pencerede açılır
+
+repositorio.ulisboa.pt
+Predicting Football Results: a Bayesian Approach with a Zero- Modified Poisson Distribution - Universidade de Lisboa
+Yeni pencerede açılır
+
+stats.oarc.ucla.edu
+Zero-Inflated Poisson Regression | R Data Analysis Examples - OARC Stats - UCLA
+Yeni pencerede açılır
+
+projecteuclid.org
+A Bayesian approach for a zero modified Poisson ... - Project Euclid
+Yeni pencerede açılır
+
+researchgate.net
+Relation between market value and performance assessments. - ResearchGate
+Yeni pencerede açılır
+
+paulrjohnson.net
+Testing Transfermarkt's Squad Market Values - Paul Johnson
+Yeni pencerede açılır
+
+en.wikipedia.org
+Elo rating system - Wikipedia
+Yeni pencerede açılır
+
+dubstat.com
+How does DubStat calculate football Elo ratings?
+Yeni pencerede açılır
+
+eloratings.net
+formula - World Football Elo Ratings
+Yeni pencerede açılır
+
+reddit.com
+NFL Elo Model that uses margin and game flow - Reddit
+Yeni pencerede açılır
+
+researchgate.net
+(PDF) A Deep Learning Approach Based on Interpretable Feature ...
+Yeni pencerede açılır
+
+researchgate.net
+(PDF) Football Data Analysis: The Predictive Power of Expected Goals (xG) - ResearchGate
+Yeni pencerede açılır
+
+medium.com
+Beyond The Score Board: How Expected Goals Reveal The Truth About Matches. - Medium
+Yeni pencerede açılır
+
+open.substack.com
+Which xG Data Should You Trust? - Substack
+Yeni pencerede açılır
+
+pythonfootball.com
+Yeni pencerede açılır
+
+socceraction.readthedocs.io
+Expected Threat (xT) - socceraction 1.5.3 documentation
+Yeni pencerede açılır
+
+pena.lt
+Calculating Expected Threat in Python Using Linear Algebra ...
+Yeni pencerede açılır
+
+sfu.ca
+A New Metric for Pitch Control based on an Intuitive Motion Model
+Yeni pencerede açılır
+
+researchgate.net
+Wide Open Spaces: A statistical technique for measuring space creation in professional soccer - ResearchGate
+Yeni pencerede açılır
+
+arxiv.org
+A Graph Neural Network deep-dive into successful counterattacks - arXiv
+Yeni pencerede açılır
+
+arxiv.org
+TacticAI: an AI assistant for football tactics - arXiv
+Yeni pencerede açılır
+
+pmc.ncbi.nlm.nih.gov
+TacticAI: an AI assistant for football tactics - PMC - PubMed Central - NIH
+Yeni pencerede açılır
+
+deepmind.google
+TacticAI: an AI assistant for football tactics - Google DeepMind
+Yeni pencerede açılır
+
+en.wikipedia.org
+Brier score - Wikipedia
+Yeni pencerede açılır
+
+timvangelder.com
+Brier score composition – A mini-tutorial – Tim van Gelder
+Yeni pencerede açılır
+
+bettoredge.com
+Closing Line Value: Enhance Your Sports Betting Success - BettorEdge
+Yeni pencerede açılır
+
+vsin.com
+Closing Line Value (CLV) in Sports Betting – What It Is & How to Beat It - VSiN
+Yeni pencerede açılır
+
+dornsife.usc.edu
+Kelly Criterion: From a Simple Random Walk to Lévy Processes - USC Dornsife
+Yeni pencerede açılır
+
+emiruz.com
+Kelly fractions for independent simultaneous bets - Emir's blog
+Yeni pencerede açılır
+
+sfu.ca
+Modified Kelly Criteria - Simon Fraser University
+Yeni pencerede açılır
+
+thestakingmachine.com
+Archie Score - Chance or Fluke ? - The Staking Machine
+Yeni pencerede açılır
+
+classic.raceadvisor.co.uk
+Who Is Archie? - Race Advisor
+Yeni pencerede açılır
+
+football-data.co.uk
+Testing the Reliability of my Betting Record Test Formula - Football-Data.co.uk
+Yeni pencerede açılır
+
+github.com
+opisthokonta/goalmodel - GitHub
+Yeni pencerede açılır
+
+pypi.org
+penaltyblog - PyPI
+Yeni pencerede açılır
+
+github.com
+eddwebster/football_analytics: A collection of football analytics projects, data, and analysis by Edd Webster (@eddwe
