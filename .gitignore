@@ -54,3 +54,6 @@ mlruns/
 tmp/
 temp/
 *.bak
+
+# Test results
+*test*.json
