@@ -766,34 +766,59 @@ export default function TeamPage() {
                 {/* 6. Fikstür Tab */}
                 <TabsContent value="fixtures" className="mt-4">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Son Maçlar */}
                       {team.sofascore.fixtures?.last && team.sofascore.fixtures.last.length > 0 && (
                         <Card>
-                          <CardHeader className="py-3"><CardTitle className="text-base text-slate-500">Son Maç</CardTitle></CardHeader>
-                          <CardContent>
-                             <div className="flex justify-between items-center text-center">
-                                <div className="text-sm font-semibold">{team.sofascore.fixtures.last[0].homeTeam.name}</div>
-                                <div className="text-2xl font-bold bg-slate-100 px-3 py-1 rounded">
-                                  {team.sofascore.fixtures.last[0].homeTeam.score}:{team.sofascore.fixtures.last[0].awayTeam.score}
+                          <CardHeader className="py-3"><CardTitle className="text-base text-slate-500">Son Maçlar ({team.sofascore.fixtures.last.length})</CardTitle></CardHeader>
+                          <CardContent className="p-0">
+                            <div className="max-h-[600px] overflow-y-auto divide-y">
+                              {team.sofascore.fixtures.last.map((match, idx) => (
+                                <div key={idx} className="p-3 hover:bg-slate-50 transition-colors">
+                                  <div className="flex justify-between items-center text-center gap-2">
+                                    <div className="text-sm font-semibold flex-1 text-right">{match.homeTeam.name}</div>
+                                    <div className="text-lg font-bold bg-slate-100 px-3 py-1 rounded min-w-[60px]">
+                                      {match.homeTeam.score !== undefined ? `${match.homeTeam.score}:${match.awayTeam.score}` : 'vs'}
+                                    </div>
+                                    <div className="text-sm font-semibold flex-1 text-left">{match.awayTeam.name}</div>
+                                  </div>
+                                  <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
+                                    <span>{match.tournament.name}</span>
+                                    <span>{new Date(match.startTimestamp * 1000).toLocaleDateString('tr-TR')}</span>
+                                  </div>
                                 </div>
-                                <div className="text-sm font-semibold">{team.sofascore.fixtures.last[0].awayTeam.name}</div>
-                             </div>
-                             <div className="text-center text-xs text-muted-foreground mt-2">{new Date(team.sofascore.fixtures.last[0].startTimestamp * 1000).toLocaleDateString()}</div>
+                              ))}
+                            </div>
                           </CardContent>
                         </Card>
                       )}
-                      
+
+                      {/* Gelecek Maçlar */}
                       {team.sofascore.fixtures?.next && team.sofascore.fixtures.next.length > 0 && (
                         <Card>
-                          <CardHeader className="py-3"><CardTitle className="text-base text-emerald-600">Sıradaki Maç</CardTitle></CardHeader>
-                          <CardContent>
-                             <div className="flex justify-between items-center text-center">
-                                <div className="text-sm font-semibold">{team.sofascore.fixtures.next[0].homeTeam.name}</div>
-                                <div className="text-xl font-bold text-slate-400">vs</div>
-                                <div className="text-sm font-semibold">{team.sofascore.fixtures.next[0].awayTeam.name}</div>
-                             </div>
-                             <div className="text-center text-sm font-medium text-emerald-600 mt-2">
-                               {new Date(team.sofascore.fixtures.next[0].startTimestamp * 1000).toLocaleString('tr-TR', { weekday: 'long', hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'long' })}
-                             </div>
+                          <CardHeader className="py-3"><CardTitle className="text-base text-emerald-600">Gelecek Maçlar ({team.sofascore.fixtures.next.length})</CardTitle></CardHeader>
+                          <CardContent className="p-0">
+                            <div className="max-h-[600px] overflow-y-auto divide-y">
+                              {team.sofascore.fixtures.next.map((match, idx) => (
+                                <div key={idx} className="p-3 hover:bg-emerald-50 transition-colors">
+                                  <div className="flex justify-between items-center text-center gap-2">
+                                    <div className="text-sm font-semibold flex-1 text-right">{match.homeTeam.name}</div>
+                                    <div className="text-lg font-bold text-slate-400 px-3 py-1 min-w-[60px]">vs</div>
+                                    <div className="text-sm font-semibold flex-1 text-left">{match.awayTeam.name}</div>
+                                  </div>
+                                  <div className="flex justify-between items-center mt-2 text-xs">
+                                    <span className="text-muted-foreground">{match.tournament.name}</span>
+                                    <span className="text-emerald-600 font-medium">
+                                      {new Date(match.startTimestamp * 1000).toLocaleString('tr-TR', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </CardContent>
                         </Card>
                       )}

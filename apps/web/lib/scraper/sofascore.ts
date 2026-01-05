@@ -321,9 +321,9 @@ export async function scrapeSofascoreTeam(teamId: string): Promise<SofascoreTeam
         if (transfersData.transfersOut) transfers.out = transfersData.transfersOut.map(mapTransfer);
     }
 
-    // 5. Fixtures
-    const nextData = await fetchInBrowser(page, `https://api.sofascore.com/api/v1/team/${teamId}/events/next/0`);
-    const lastData = await fetchInBrowser(page, `https://api.sofascore.com/api/v1/team/${teamId}/events/last/0`);
+    // 5. Fixtures (fetch last 20 and next 20 matches)
+    const nextData = await fetchInBrowser(page, `https://api.sofascore.com/api/v1/team/${teamId}/events/next/20`);
+    const lastData = await fetchInBrowser(page, `https://api.sofascore.com/api/v1/team/${teamId}/events/last/20`);
 
     const mapFixture = (e: any) => ({
         id: e.id,
