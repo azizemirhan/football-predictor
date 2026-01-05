@@ -40,6 +40,9 @@ export interface SofascoreFixture {
 }
 
 export interface SofascoreStandings {
+  teamId?: number;
+  teamName?: string;
+  teamShortName?: string;
   position: number;
   matches: number;
   wins: number;
@@ -105,13 +108,14 @@ export interface SofascoreTeamData {
   manager?: { name: string; id?: number };
   stadium?: { name: string; capacity?: number };
   country?: { name: string };
-  
+
   // Categories
   category?: { name: string; slug: string };
   tournament?: { name: string; slug: string };
-  
+
   // Standings
   standings?: SofascoreStandings;
+  fullStandings?: SofascoreStandings[]; // Full league table
   form?: string[]; // W D L sequence derived from last matches or standings
 
   // Detailed Stats
@@ -119,7 +123,7 @@ export interface SofascoreTeamData {
 
   // Squad
   squad: SofascorePlayer[];
-  
+
   // Transfers
   transfers?: {
     in: SofascoreTransfer[];
@@ -272,10 +276,30 @@ export async function scrapeSofascoreTeam(teamId: string): Promise<SofascoreTeam
                 };
             }
 
-            // B. Standings & Form
+            // B. Standings & Form - Get FULL league table
             const standingsData = await fetchInBrowser(page, `https://api.sofascore.com/api/v1/unique-tournament/${tournamentId}/season/${currentSeason.id}/standings/total`);
+            let fullStandings: any[] = [];
             if (standingsData?.standings) {
                 const table = standingsData.standings[0]?.rows || [];
+
+                // Map all teams in the table
+                fullStandings = table.map((row: any) => ({
+                    teamId: row.team.id,
+                    teamName: row.team.name,
+                    teamShortName: row.team.shortName,
+                    position: row.position,
+                    matches: row.matches,
+                    wins: row.wins,
+                    draws: row.draws,
+                    losses: row.losses,
+                    scoresFor: row.scoresFor,
+                    scoresAgainst: row.scoresAgainst,
+                    points: row.points,
+                    scoreDiffFormatted: row.scoreDiffFormatted,
+                    promotion: row.promotion
+                }));
+
+                // Find current team's standing
                 const teamRow = table.find((row: any) => row.team.id.toString() === teamId);
                 if (teamRow) {
                     standing = {
@@ -290,9 +314,6 @@ export async function scrapeSofascoreTeam(teamId: string): Promise<SofascoreTeam
                         scoreDiffFormatted: teamRow.scoreDiffFormatted,
                         promotion: teamRow.promotion
                     };
-                    
-                    // Extract Form from row if available or fetches
-                    // Sofascore doesn't always send form in standings, but let's check
                 }
             }
             
@@ -367,11 +388,12 @@ export async function scrapeSofascoreTeam(teamId: string): Promise<SofascoreTeam
         country: t.country,
         category: t.category,
         tournament: t.tournament,
-        
+
         standings: standing,
+        fullStandings: fullStandings, // Full league table
         statistics: stats,
         form: form,
-        
+
         squad: squad,
         transfers: transfers,
         fixtures: fixtures

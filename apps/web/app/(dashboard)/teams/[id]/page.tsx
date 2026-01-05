@@ -555,15 +555,15 @@ export default function TeamPage() {
                     <TabsTrigger value="fixtures">Fikstür</TabsTrigger>
                 </TabsList>
 
-                {/* 2. Puan Durumu Tab */}
+                {/* 2. Puan Durumu Tab - Full League Table */}
                 <TabsContent value="standings" className="mt-4">
                   <Card>
                     <CardHeader><CardTitle>Puan Durumu</CardTitle></CardHeader>
-                    <CardContent>
-                       {team.sofascore.standings ? (
+                    <CardContent className="p-0">
+                       {team.sofascore.fullStandings && team.sofascore.fullStandings.length > 0 ? (
                          <div className="overflow-x-auto">
                            <table className="w-full text-sm">
-                             <thead className="bg-muted/50">
+                             <thead className="bg-muted/50 sticky top-0">
                                <tr>
                                  <th className="p-3 text-center w-12">#</th>
                                  <th className="p-3 text-left">Takım</th>
@@ -571,34 +571,39 @@ export default function TeamPage() {
                                  <th className="p-3 text-center">G</th>
                                  <th className="p-3 text-center">B</th>
                                  <th className="p-3 text-center">M</th>
-                                 <th className="p-3 text-center">Gol</th>
+                                 <th className="p-3 text-center">AG</th>
+                                 <th className="p-3 text-center">YG</th>
                                  <th className="p-3 text-center">Av</th>
                                  <th className="p-3 text-center font-bold">P</th>
-                                 <th className="p-3 text-center">Son 5</th>
                                </tr>
                              </thead>
-                             <tbody>
-                               <tr className="border-b">
-                                 <td className={`p-3 text-center font-medium
-                                   ${team.sofascore.standings.promotion?.id === 804 ? 'text-blue-600 border-l-4 border-l-blue-600' : ''}
-                                 `}>{team.sofascore.standings.position}</td>
-                                 <td className="p-3 font-medium">{team.sofascore.name}</td>
-                                 <td className="p-3 text-center">{team.sofascore.standings.matches}</td>
-                                 <td className="p-3 text-center text-green-600">{team.sofascore.standings.wins}</td>
-                                 <td className="p-3 text-center text-slate-500">{team.sofascore.standings.draws}</td>
-                                 <td className="p-3 text-center text-red-600">{team.sofascore.standings.losses}</td>
-                                 <td className="p-3 text-center">{team.sofascore.standings.scoresFor}:{team.sofascore.standings.scoresAgainst}</td>
-                                 <td className="p-3 text-center">{team.sofascore.standings.scoreDiffFormatted}</td>
-                                 <td className="p-3 text-center font-bold text-lg">{team.sofascore.standings.points}</td>
-                                 <td className="p-3 text-center flex items-center justify-center gap-1">
-                                    {(team.sofascore.form || []).map((f, i) => (
-                                      <span key={i} className={`
-                                        w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white
-                                        ${f === 'W' ? 'bg-green-500' : f === 'D' ? 'bg-slate-400' : f === 'L' ? 'bg-red-500' : 'bg-slate-200'}
-                                      `}>{f}</span>
-                                    ))}
-                                 </td>
-                               </tr>
+                             <tbody className="divide-y">
+                               {team.sofascore.fullStandings.map((row, idx) => {
+                                 const isCurrentTeam = row.teamId?.toString() === team.sofascore.id.toString();
+                                 const promotionColor = row.promotion?.id === 804 ? 'border-l-blue-500' :
+                                                       row.promotion?.id === 803 ? 'border-l-green-500' :
+                                                       row.promotion?.id === 806 ? 'border-l-orange-500' :
+                                                       row.promotion?.id === 805 ? 'border-l-red-500' : '';
+
+                                 return (
+                                   <tr key={idx} className={`
+                                     ${isCurrentTeam ? 'bg-emerald-500/10 font-semibold' : 'hover:bg-muted/30'}
+                                     ${promotionColor ? `border-l-4 ${promotionColor}` : ''}
+                                     transition-colors
+                                   `}>
+                                     <td className="p-3 text-center font-medium">{row.position}</td>
+                                     <td className="p-3">{row.teamName}</td>
+                                     <td className="p-3 text-center">{row.matches}</td>
+                                     <td className="p-3 text-center text-green-600">{row.wins}</td>
+                                     <td className="p-3 text-center text-muted-foreground">{row.draws}</td>
+                                     <td className="p-3 text-center text-red-600">{row.losses}</td>
+                                     <td className="p-3 text-center">{row.scoresFor}</td>
+                                     <td className="p-3 text-center">{row.scoresAgainst}</td>
+                                     <td className="p-3 text-center font-medium">{row.scoreDiffFormatted}</td>
+                                     <td className="p-3 text-center font-bold text-lg">{row.points}</td>
+                                   </tr>
+                                 );
+                               })}
                              </tbody>
                            </table>
                          </div>
@@ -613,10 +618,10 @@ export default function TeamPage() {
                      <>
                         {/* A. Özet */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                           <Card className="bg-slate-50"><CardContent className="p-4 text-center"><div className="text-muted-foreground text-sm">Reyting</div><div className="text-2xl font-bold text-blue-600">{team.sofascore.rating}</div></CardContent></Card>
-                           <Card className="bg-slate-50"><CardContent className="p-4 text-center"><div className="text-muted-foreground text-sm">Gol</div><div className="text-2xl font-bold text-green-600">{team.sofascore.statistics.goalsScored}</div></CardContent></Card>
-                           <Card className="bg-slate-50"><CardContent className="p-4 text-center"><div className="text-muted-foreground text-sm">Yenen Gol</div><div className="text-2xl font-bold text-red-600">{team.sofascore.statistics.goalsConceded}</div></CardContent></Card>
-                           <Card className="bg-slate-50"><CardContent className="p-4 text-center"><div className="text-muted-foreground text-sm">Asist</div><div className="text-2xl font-bold text-purple-600">{team.sofascore.statistics.assists}</div></CardContent></Card>
+                           <Card className="bg-muted/50"><CardContent className="p-4 text-center"><div className="text-muted-foreground text-sm">Reyting</div><div className="text-2xl font-bold text-blue-600">{team.sofascore.rating}</div></CardContent></Card>
+                           <Card className="bg-muted/50"><CardContent className="p-4 text-center"><div className="text-muted-foreground text-sm">Gol</div><div className="text-2xl font-bold text-green-600">{team.sofascore.statistics.goalsScored}</div></CardContent></Card>
+                           <Card className="bg-muted/50"><CardContent className="p-4 text-center"><div className="text-muted-foreground text-sm">Yenen Gol</div><div className="text-2xl font-bold text-red-600">{team.sofascore.statistics.goalsConceded}</div></CardContent></Card>
+                           <Card className="bg-muted/50"><CardContent className="p-4 text-center"><div className="text-muted-foreground text-sm">Asist</div><div className="text-2xl font-bold text-purple-600">{team.sofascore.statistics.assists}</div></CardContent></Card>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -662,7 +667,7 @@ export default function TeamPage() {
 
                            {/* E. Diğer */}
                            <Card>
-                             <CardHeader className="bg-slate-50 py-3"><CardTitle className="text-base text-slate-700">⚖️ Disiplin & Mücadele</CardTitle></CardHeader>
+                             <CardHeader className="bg-muted/30 py-3"><CardTitle className="text-base">⚖️ Disiplin & Mücadele</CardTitle></CardHeader>
                              <CardContent className="pt-4 space-y-2 text-sm">
                                <div className="flex justify-between border-b pb-1"><span>İkili Mücadele Kazanma %</span><span className="font-semibold">{team.sofascore.statistics.duelsWonPercentage}%</span></div>
                                <div className="flex justify-between border-b pb-1"><span>Hava Topu Kazanma %</span><span className="font-semibold">{team.sofascore.statistics.aerialDuelsWonPercentage}%</span></div>
