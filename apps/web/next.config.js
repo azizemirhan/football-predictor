@@ -5,6 +5,10 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'crests.football-data.org',
+      },
+      {
+        protocol: 'https',
         hostname: 'sofascore.com',
       },
       {
@@ -14,6 +18,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'tmssl.akamaized.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'media.api-sports.io',
       },
     ],
   },

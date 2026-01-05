@@ -1,50 +1,90 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import Image from 'next/image'
+import Link from 'next/link'
 import {
     TrendingUp,
-    TrendingDown,
     Target,
     Zap,
     Calendar,
     ChevronRight,
-    Trophy
+    Trophy,
+    BarChart3,
+    DollarSign
 } from "lucide-react"
+
+interface DashboardData {
+    stats: {
+        totalMatches: number
+        upcomingMatches: number
+        liveMatches: number
+        totalTeams: number
+        totalOdds: number
+        activeValueBets: number
+        avgEdge: number
+    }
+    upcomingMatches: {
+        id: number
+        homeTeam: string
+        homeTeamFull: string
+        homeTeamLogo?: string
+        awayTeam: string
+        awayTeamFull: string
+        awayTeamLogo?: string
+        date: string
+        time: string
+        prediction: { home: number; draw: number; away: number }
+        confidence: 'high' | 'medium' | 'low'
+    }[]
+    topValueBets: {
+        id: number
+        match: string
+        selection: string
+        odds: number
+        edge: number
+        kellyStake: number
+    }[]
+    lastUpdated: string
+}
 
 // Stat Card Component
 function StatCard({
     title,
     value,
-    change,
-    changeType,
-    icon: Icon
+    subtitle,
+    icon: Icon,
+    color = 'primary'
 }: {
     title: string
-    value: string
-    change: string
-    changeType: "up" | "down"
+    value: string | number
+    subtitle?: string
     icon: React.ElementType
+    color?: 'primary' | 'green' | 'blue' | 'orange'
 }) {
+    const colors = {
+        primary: 'bg-primary/10 text-primary',
+        green: 'bg-green-500/10 text-green-500',
+        blue: 'bg-blue-500/10 text-blue-500',
+        orange: 'bg-orange-500/10 text-orange-500'
+    }
+
     return (
-        <Card>
-            <CardContent className="p-6">
+        <Card className="bg-card/50 border-border/50">
+            <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm text-muted-foreground">{title}</p>
                         <p className="text-2xl font-bold mt-1">{value}</p>
-                        <div className="flex items-center gap-1 mt-2">
-                            {changeType === "up" ? (
-                                <TrendingUp className="h-4 w-4 text-green-500" />
-                            ) : (
-                                <TrendingDown className="h-4 w-4 text-red-500" />
-                            )}
-                            <span className={changeType === "up" ? "text-green-500 text-sm" : "text-red-500 text-sm"}>
-                                {change}
-                            </span>
-                        </div>
+                        {subtitle && (
+                            <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+                        )}
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Icon className="h-6 w-6 text-primary" />
+                    <div className={`h-12 w-12 rounded-full ${colors[color]} flex items-center justify-center`}>
+                        <Icon className="h-6 w-6" />
                     </div>
                 </div>
             </CardContent>
@@ -53,240 +93,267 @@ function StatCard({
 }
 
 // Upcoming Match Component
-function UpcomingMatch({
-    homeTeam,
-    awayTeam,
-    time,
-    prediction
-}: {
-    homeTeam: string
-    awayTeam: string
-    time: string
-    prediction: { home: number; draw: number; away: number }
-}) {
+function UpcomingMatch({ match }: { match: DashboardData['upcomingMatches'][0] }) {
+    const confidenceColors = {
+        high: 'bg-green-500/20 text-green-400',
+        medium: 'bg-yellow-500/20 text-yellow-400',
+        low: 'bg-red-500/20 text-red-400'
+    }
+
     return (
-        <div className="match-card">
-            <div className="flex items-center justify-between mb-4">
-                <span className="text-xs text-muted-foreground">{time}</span>
-                <span className="prediction-badge prediction-badge-high">High Confidence</span>
-            </div>
+        <Card className="bg-card/50 border-border/50 hover:border-primary/50 transition-all">
+            <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-muted-foreground">{match.date} - {match.time}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${confidenceColors[match.confidence]}`}>
+                        {match.confidence === 'high' ? 'Yüksek Güven' : 'Orta Güven'}
+                    </span>
+                </div>
 
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                        <Trophy className="h-5 w-5" />
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        {match.homeTeamLogo ? (
+                            <Image src={match.homeTeamLogo} alt={match.homeTeam} width={32} height={32} className="rounded" />
+                        ) : (
+                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                                <Trophy className="h-4 w-4" />
+                            </div>
+                        )}
+                        <span className="font-semibold">{match.homeTeam}</span>
                     </div>
-                    <span className="font-medium">{homeTeam}</span>
-                </div>
-                <span className="text-muted-foreground">vs</span>
-                <div className="flex items-center gap-3">
-                    <span className="font-medium">{awayTeam}</span>
-                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                        <Trophy className="h-5 w-5" />
+                    <span className="text-muted-foreground text-sm">vs</span>
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold">{match.awayTeam}</span>
+                        {match.awayTeamLogo ? (
+                            <Image src={match.awayTeamLogo} alt={match.awayTeam} width={32} height={32} className="rounded" />
+                        ) : (
+                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                                <Trophy className="h-4 w-4" />
+                            </div>
+                        )}
                     </div>
                 </div>
-            </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                    <span>Home Win</span>
-                    <span className="font-medium">{prediction.home}%</span>
+                {/* Prediction Bars */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                        <span className="text-green-400">Ev {match.prediction.home}%</span>
+                        <span className="text-yellow-400">X {match.prediction.draw}%</span>
+                        <span className="text-red-400">Dep {match.prediction.away}%</span>
+                    </div>
+                    <div className="flex h-2 rounded-full overflow-hidden">
+                        <div className="bg-green-500" style={{ width: `${match.prediction.home}%` }} />
+                        <div className="bg-yellow-500" style={{ width: `${match.prediction.draw}%` }} />
+                        <div className="bg-red-500" style={{ width: `${match.prediction.away}%` }} />
+                    </div>
                 </div>
-                <Progress value={prediction.home} className="h-2" />
-
-                <div className="flex items-center justify-between text-sm">
-                    <span>Draw</span>
-                    <span className="font-medium">{prediction.draw}%</span>
-                </div>
-                <Progress value={prediction.draw} className="h-2" />
-
-                <div className="flex items-center justify-between text-sm">
-                    <span>Away Win</span>
-                    <span className="font-medium">{prediction.away}%</span>
-                </div>
-                <Progress value={prediction.away} className="h-2" />
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     )
 }
 
-// Value Bet Component
-function ValueBetCard({
-    match,
-    selection,
-    odds,
-    edge,
-    confidence
-}: {
-    match: string
-    selection: string
-    odds: number
-    edge: number
-    confidence: string
-}) {
+// Value Bet Card
+function ValueBetItem({ bet }: { bet: DashboardData['topValueBets'][0] }) {
+    const selectionLabels: Record<string, string> = {
+        home: 'Ev Sahibi',
+        draw: 'Beraberlik',
+        away: 'Deplasman'
+    }
+
     return (
-        <div className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-            <div className="flex-1">
-                <p className="font-medium">{match}</p>
-                <p className="text-sm text-muted-foreground">{selection}</p>
+        <div className="flex items-center justify-between p-3 bg-card/30 rounded-lg hover:bg-card/50 transition-all">
+            <div>
+                <div className="font-medium text-sm">{bet.match}</div>
+                <div className="text-xs text-primary">{selectionLabels[bet.selection] || bet.selection}</div>
             </div>
             <div className="text-right">
-                <p className="font-bold text-primary">{odds.toFixed(2)}</p>
-                <p className="text-xs text-green-500">+{(edge * 100).toFixed(1)}% edge</p>
+                <div className="font-bold">{bet.odds.toFixed(2)}</div>
+                <div className="text-xs text-green-400">+{(bet.edge * 100).toFixed(1)}%</div>
             </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground ml-2" />
         </div>
     )
 }
 
 export default function DashboardPage() {
+    const [data, setData] = useState<DashboardData | null>(null)
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        async function fetchDashboard() {
+            try {
+                const response = await fetch('/api/dashboard')
+                const result = await response.json()
+                setData(result)
+            } catch (error) {
+                console.error('Failed to fetch dashboard:', error)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchDashboard()
+    }, [])
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            </div>
+        )
+    }
+
+    if (!data) {
+        return (
+            <div className="text-center py-12">
+                <p className="text-muted-foreground">Veriler yüklenemedi</p>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold">Dashboard</h1>
-                <p className="text-muted-foreground mt-1">
-                    Welcome back! Here&apos;s your prediction overview.
-                </p>
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
+                        Dashboard
+                    </h1>
+                    <p className="text-muted-foreground">Premier League AI Tahmin Merkezi</p>
+                </div>
+                <div className="flex gap-2">
+                    <Link href="/matches">
+                        <Button variant="outline" className="gap-2">
+                            <Calendar className="h-4 w-4" />
+                            Maçlar
+                        </Button>
+                    </Link>
+                    <Link href="/value-bets">
+                        <Button className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600">
+                            <Zap className="h-4 w-4" />
+                            Value Bets
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {/* Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
-                    title="Accuracy (30d)"
-                    value="58.4%"
-                    change="+2.3% from last month"
-                    changeType="up"
-                    icon={Target}
-                />
-                <StatCard
-                    title="ROI (30d)"
-                    value="+12.5%"
-                    change="+4.2% from last month"
-                    changeType="up"
-                    icon={TrendingUp}
-                />
-                <StatCard
-                    title="Value Bets Found"
-                    value="23"
-                    change="5 new today"
-                    changeType="up"
-                    icon={Zap}
-                />
-                <StatCard
-                    title="Upcoming Matches"
-                    value="12"
-                    change="Next 48 hours"
-                    changeType="up"
+                    title="Toplam Maç"
+                    value={data.stats.totalMatches}
+                    subtitle={`${data.stats.upcomingMatches} yaklaşan`}
                     icon={Calendar}
+                    color="primary"
+                />
+                <StatCard
+                    title="Takımlar"
+                    value={data.stats.totalTeams}
+                    subtitle="Premier League"
+                    icon={Trophy}
+                    color="blue"
+                />
+                <StatCard
+                    title="Aktif Value Bets"
+                    value={data.stats.activeValueBets}
+                    subtitle={`Ort. Edge: +${(data.stats.avgEdge * 100).toFixed(1)}%`}
+                    icon={Target}
+                    color="green"
+                />
+                <StatCard
+                    title="Bahis Oranları"
+                    value={data.stats.totalOdds}
+                    subtitle="Nesine / İddaa"
+                    icon={BarChart3}
+                    color="orange"
                 />
             </div>
 
             {/* Main Content Grid */}
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Upcoming Matches */}
                 <div className="lg:col-span-2 space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold">Upcoming Matches</h2>
-                        <Button variant="ghost" size="sm">
-                            View All <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-primary" />
+                            Yaklaşan Maçlar
+                        </h2>
+                        <Link href="/matches">
+                            <Button variant="ghost" size="sm" className="gap-1">
+                                Tümünü Gör <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </Link>
                     </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <UpcomingMatch
-                            homeTeam="Liverpool"
-                            awayTeam="Arsenal"
-                            time="Tomorrow, 15:00"
-                            prediction={{ home: 45, draw: 28, away: 27 }}
-                        />
-                        <UpcomingMatch
-                            homeTeam="Man City"
-                            awayTeam="Chelsea"
-                            time="Sunday, 17:30"
-                            prediction={{ home: 62, draw: 22, away: 16 }}
-                        />
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {data.upcomingMatches.map((match) => (
+                            <UpcomingMatch key={match.id} match={match} />
+                        ))}
                     </div>
                 </div>
 
-                {/* Value Bets */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold">Top Value Bets</h2>
-                        <Button variant="ghost" size="sm">
-                            View All <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                    </div>
+                {/* Sidebar */}
+                <div className="space-y-6">
+                    {/* Top Value Bets */}
+                    <Card className="bg-card/50 border-border/50">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-bold flex items-center gap-2">
+                                    <Target className="h-4 w-4 text-green-500" />
+                                    En İyi Value Bets
+                                </h3>
+                                <Link href="/value-bets">
+                                    <Button variant="ghost" size="sm">
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </Link>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                {data.topValueBets.length > 0 ? (
+                                    data.topValueBets.map((bet) => (
+                                        <ValueBetItem key={bet.id} bet={bet} />
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-muted-foreground text-center py-4">
+                                        Henüz value bet bulunamadı
+                                    </p>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                    <Card>
-                        <CardContent className="p-4 space-y-3">
-                            <ValueBetCard
-                                match="Liverpool vs Arsenal"
-                                selection="Home Win"
-                                odds={2.15}
-                                edge={0.072}
-                                confidence="high"
-                            />
-                            <ValueBetCard
-                                match="Brighton vs Newcastle"
-                                selection="Over 2.5"
-                                odds={1.85}
-                                edge={0.054}
-                                confidence="medium"
-                            />
-                            <ValueBetCard
-                                match="Aston Villa vs Wolves"
-                                selection="BTTS Yes"
-                                odds={1.72}
-                                edge={0.048}
-                                confidence="medium"
-                            />
+                    {/* Quick Stats */}
+                    <Card className="bg-gradient-to-br from-primary/20 to-purple-500/20 border-primary/30">
+                        <CardContent className="p-4">
+                            <h3 className="font-bold mb-4 flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4" />
+                                Sistem Durumu
+                            </h3>
+                            
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-muted-foreground">Supabase</span>
+                                    <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400">Bağlı</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-muted-foreground">Football-Data API</span>
+                                    <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400">Aktif</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-muted-foreground">Odds Sync</span>
+                                    <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400">Çalışıyor</span>
+                                </div>
+                            </div>
+                            
+                            <div className="mt-4 pt-4 border-t border-border/50">
+                                <p className="text-xs text-muted-foreground">
+                                    Son güncelleme: {new Date(data.lastUpdated).toLocaleString('tr-TR')}
+                                </p>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
             </div>
-
-            {/* Model Performance */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Model Performance (Last 30 Days)</CardTitle>
-                    <CardDescription>
-                        Breakdown by prediction model
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid gap-4 md:grid-cols-4">
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm">Ensemble</span>
-                                <span className="text-sm font-medium">58.4%</span>
-                            </div>
-                            <Progress value={58.4} className="h-2" />
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm">XGBoost</span>
-                                <span className="text-sm font-medium">55.2%</span>
-                            </div>
-                            <Progress value={55.2} className="h-2" />
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm">Poisson</span>
-                                <span className="text-sm font-medium">52.8%</span>
-                            </div>
-                            <Progress value={52.8} className="h-2" />
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm">Elo Rating</span>
-                                <span className="text-sm font-medium">51.6%</span>
-                            </div>
-                            <Progress value={51.6} className="h-2" />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     )
 }
