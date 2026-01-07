@@ -1,0 +1,114 @@
+# Futbol Tahmin Sistemi Derinlemesine Araştırma Raporu
+
+Bu rapor, modern futbol tahmin sistemlerinin akademik temellerini, endüstriyel standartlarını ve teknik uygulama stratejilerini analiz etmek amacıyla hazırlanmıştır. Mevcut GitHub deposundaki altyapı ile uyumlu olacak şekilde, teorik bilgiler pratik uygulama önerileriyle birleştirilmiştir.
+
+---
+
+## 1. Akademik Literatür Araştırması
+
+### Özet
+Futbol tahmin literatürü, 1990'ların sonundaki temel istatistiksel modellerden günümüzün karmaşık makine öğrenmesi ve Bayesyen yaklaşımlarına evrilmiştir. Temel odak noktası, düşük skorlu bir spor olan futboldaki yüksek varyansı yönetmek ve gollerin bağımsızlığı varsayımındaki hataları düzeltmektir. Modern çalışmalar, sadece sonuç odaklı değil, oyunun kalitesini ölçen süreç odaklı metriklerin (xG, event sequences) entegrasyonuna yoğunlaşmaktadır [1] [2].
+
+### Ana Bulgular
+*   **Dixon-Coles Modeli ve Varyasyonları:** Dixon ve Coles'un 1997'de önerdiği model, bağımsız Poisson modellerinin en büyük zayıflığı olan düşük skorlu (0-0, 1-1 gibi) maçlardaki beraberlik frekanslarını bir bağımlılık parametresi ($\rho$) ile düzeltir. Güncel çalışmalar, bu modeli **Elo ratingleri** ile hibrit hale getirerek takım güçlerini dinamik olarak güncellemeyi önermektedir. Ayrıca, geçmiş maçların etkisini üstel olarak azaltan (adjustable decay parameter) yapılar kullanarak güncel formu daha iyi yakalamaktadır [3].
+*   **Expected Goals (xG) Modelleme:** Modern xG modelleri sadece şutun konumunu değil, şut öncesindeki **olay dizilerini (event sequences)**, pas türünü ve defans baskısını da içerir. "Advancement factor" ve "player position column" gibi spatiotemporal özellikler xG modellerine entegre edilerek doğruluk artırılmaktadır [4]. Maçın o anki skoru (Game State) xG'nin gelecekteki performansı tahmin etme gücünü etkilediği için, nötr skor durumundaki xG verileri daha güvenilir bir gösterge olarak kabul edilmektedir.
+*   **Ensemble Learning ve Bayesian Yaklaşım:** XGBoost, LightGBM ve sinir ağlarının birleşimi (stacking) gibi **heterojen ensemble** modelleri, tekil istatistiksel modellerden daha yüksek doğruluk sağlar. **Hiyerarşik Bayes modelleri** ise, lig seviyesindeki parametreleri takım seviyesindeki verilerle birleştirerek özellikle az verili durumlarda (yeni sezon başlangıcı) daha stabil tahminler üretir [5].
+
+### Önerilen Implementation Stratejisi
+Mevcut `dixon_coles.py` modelini, takım güçlerini (attack/defense) Elo ratingleri ile hibrit hale getiren bir yapıya dönüştürün. Model eğitiminde **Time-Series Cross-Validation** kullanarak veri sızıntısını (data leakage) önleyin.
+
+---
+
+## 2. Endüstri Best Practices
+
+### Özet
+Profesyonel bahis dünyası, verimliliği çok yüksek olan marketlerde (Pinnacle, Betfair) **"değer" (value)** bulma üzerine kuruludur. Başarılı sendikalar, sadece maç sonucunu değil, oran hareketlerini ve market likiditesini de takip eden sofistike algoritmalar kullanır. Uzun vadeli kârlılık, tahmin doğruluğundan ziyade disiplinli bir bankroll yönetimi ve beklenen değer (EV) hesaplamasına bağlıdır [6].
+
+### Ana Bulgular
+*   **Market Efficiency:** **Pinnacle**'ın kapanış oranları (closing odds), "wisdom of the crowd" prensibiyle gerçek olasılığa en yakın değerler olarak kabul edilir. **Betfair Exchange** ise kullanıcıların birbirine karşı bahis yapmasına izin vererek market verimliliğini artırır ve **True Probability** için en iyi benchmark'ı sunar.
+*   **Betting Syndicates:** Bu gruplar veri bilimciler, yazılım mühendisleri ve traderlardan oluşan multidisipliner ekiplerle çalışır. Kendi özel modellerini kullanarak **"closing line"** (kapanış oranı) öncesinde değer yakalamaya çalışırlar.
+*   **Bankroll Management:** **Kelly Criterion**, matematiksel olarak bankroll büyümesini maksimize eder. Ancak futboldaki yüksek varyans nedeniyle endüstri standardı **1/4 Fractional Kelly** kullanmaktır. Bu muhafazakar yaklaşım, volatiliteyi düşürür ve sermayeyi korur [7].
+
+### Önerilen Implementation Stratejisi
+Sisteme bir **"Market Monitor"** modülü ekleyerek Pinnacle kapanış oranları ile model tahminlerinizi kıyaslayın. Eğer modeliniz sürekli olarak kapanış oranlarını yeniyorsa (**beating the closing line**), modelin "edge" sahibi olduğu kanıtlanmış olur. `packages/ai-engine/betting/kelly.py` dosyasında Fractional Kelly uygulamasını standart hale getirin.
+
+---
+
+## 3. Teknik Derinleştirme
+
+### Özet
+Futbol skorlarının modellenmesinde Poisson dağılımı temel taşıdır, ancak futbolun doğasındaki bazı kısıtlamalar nedeniyle modifiye edilmesi gerekir. Teknik derinleşme, verilerin zaman içindeki önemini (time-decay) ve hangi özelliklerin (features) tahminde gerçekten fark yarattığını anlamayı gerektirir [8].
+
+### Ana Bulgular
+*   **Bivariate Poisson vs Independent Poisson:** Independent Poisson, takımlar arası etkileşimi göz ardı eder. **Bivariate Poisson** ise iki takımın gol sayıları arasındaki korelasyonu (beraberlik eğilimini) bir kovaryans parametresi ile modele dahil eder. Hibrit modeller, Bivariate Poisson'u sinir ağları ile birleştirerek tahmin doğruluğunu artırmaktadır [9].
+*   **Time-Decay Elo Rating Sistemi Optimizasyonu:** Geçmiş maçların etkisini üstel olarak azaltan (exponential decay) bir katsayı kullanarak güncel form durumunu daha iyi yansıtır. Bu katsayının lig bazlı optimize edilmesi, tahmin gücünü artırmaktadır. **Dinamik K-Faktörü** kullanımı, ratinglerin daha hızlı ve doğru güncellenmesini sağlar.
+*   **Feature Importance:** Elo ratingleri, FIFA ratingleri, tarihsel maç istatistikleri ve bahis oranları en yüksek tahmin gücüne sahip özellikler arasındadır. **xG** ve **event data** (şut konumu, pas dizileri) gibi detaylı olay verileri, özellikle xG modelleri üzerinden ana tahmin modeline beslendiğinde anlamlı katkı sağlar.
+
+### Önerilen Implementation Stratejisi
+`packages/ai-engine/models/poisson.py` dosyasını Bivariate Poisson'a yükseltin. `packages/ai-engine/models/elo.py` dosyasında **Time-Decay** mekanizmasını uygulayın.
+
+---
+
+## 4. Veri Kaynakları
+
+### Özet
+Veri kalitesi, modelin tavanını belirleyen en önemli faktördür. Profesyonel bir sistem için xG ve detaylı event verisi sağlayan API'ler zorunludur.
+
+### Veri Sağlayıcı Karşılaştırması
+
+| Sağlayıcı | Veri Türü | Maliyet | Önerilen Kullanım |
+| :--- | :--- | :--- | :--- |
+| **StatsBomb / Opta** | Event / xG | Yüksek ($$$) | Profesyonel düzeyde event verisi. |
+| **Understat** | xG (Web) | Ücretsiz | **En iyi ücretsiz xG kaynağı.** |
+| **Sportmonks / API-Football** | General API | Orta ($$) | Kapsamlı lig verileri, oyuncu istatistikleri. |
+| **Betfair Historical Data** | Oran (CSV) | Ücretli | En güvenilir backtesting verisi. |
+| **The-Odds-API** | Oran (JSON) | Orta ($$) | Canlı ve geçmiş oran snapshotları. |
+
+### Önerilen Implementation Stratejisi
+Başlangıç aşamasında **Understat**'tan xG verilerini çekerek bir base-model oluşturun. Real-time oranlar için **The-Odds-API** entegrasyonunu tamamlayın. `apps/scraper/scrapers/odds/betfair.py` dosyasını kullanarak Betfair'den geçmiş verileri çekme yeteneğini geliştirin.
+
+---
+
+## 5. Model Değerlendirme
+
+### Özet
+Bir modelin başarısı sadece "accuracy" ile ölçülemez. Olasılıksal tahminlerde modelin ne kadar **"kalibre"** olduğu ve yanlış tahminlerinde ne kadar büyük hata yaptığı (Log Loss) çok daha kritiktir [10].
+
+### Ana Bulgular
+*   **Brier Score vs Log Loss:** **Log Loss** (Cross-Entropy), yanlış ve yüksek güvenli tahminleri daha ağır cezalandırdığı için modelin **"sharpness"** ve **"calibration"** dengesini ölçmek için en iyi metriklerden biridir. Brier Score ise ortalama karesel hatayı ölçer. Futbolda 0.17-0.18 civarı bir Brier skoru "çok iyi" kabul edilir.
+*   **Kalibrasyon:** Modelin %X olasılık verdiği olayların gerçekten %X oranında gerçekleşmesidir. Kârlılık için doğru olasılık tahmini (kalibrasyon) hayati önem taşır.
+*   **Statistical Significance:** Bir modelin gerçek kârlılığını (**edge**) kanıtlamak için en az **500-1000 arası bağımsız bahis verisi** gereklidir. Küçük örneklemlerdeki yüksek ROI değerleri genellikle şans (variance) kaynaklıdır.
+
+### Önerilen Implementation Stratejisi
+`packages/ai-engine/evaluation/metrics.py` dosyasına **Brier Score** ve **Log Loss** hesaplayıcılarını ekleyin. Modelin her hafta için **"Calibration Plot"** grafiğini oluşturarak, tahmin edilen olasılıkların gerçek frekanslarla örtüşüp örtüşmediğini görselleştirin.
+
+---
+
+## 6. Rekabet Analizi
+
+### Özet
+Piyasadaki en güçlü rakiplerden biri olan FiveThirtyEight'in SPI modeli, karmaşık ama şeffaf bir metodoloji sunar. Betfair Exchange, marketin en güncel ve verimli olasılık kaynağıdır.
+
+### Ana Bulgular
+*   **FiveThirtyEight SPI:** Ofansif ve defansif ratinglere dayanır. **Adjusted Goals** (kırmızı kart veya skor avantajına göre düzeltilmiş goller) kullanımı, modelin en güçlü yanıdır. SPI'nın çok yüksek olasılıklı maçlarda bazen fazla muhafazakar kaldığı gözlemlenmiştir.
+*   **Betfair Exchange Implied Probabilities:** Marketin en güncel ve verimli olasılık kaynağıdır. Modelinizin başarısını ölçmek için Betfair oranlarını **"benchmark"** olarak kullanmalısınız.
+*   **Mevcut Tahmin Siteleri:** Forebet ve Soccervista gibi siteler genellikle basit Poisson modelleri kullanır. Profesyonel bir sistemin bu sitelerden ayrışması için **"value bet" tespiti** ve **bankroll yönetimi** gibi katma değerli özellikler sunması kritik önem taşır.
+
+### Önerilen Implementation Stratejisi
+FiveThirtyEight'in metodolojisinden **"Adjusted Goals"** mantığını ödünç alın. Skor 3-0 olduktan sonra atılan gollerin veya 10 kişi kalmış bir takıma karşı atılan gollerin model üzerindeki ağırlığını azaltarak daha gerçekçi bir takım gücü profili oluşturun.
+
+---
+**Hazırlayan:** Manus AI
+**Tarih:** 4 Ocak 2026
+
+### Referanslar
+[1] Predicting goal probabilities with improved xG models using event sequences in association football - PMC
+[2] A Comparative Study of Ensemble Methods and Feature ...
+[3] Predicting Qualification Thresholds in UEFA's incomplete ...
+[4] Improving expected Goals (xG) models
+[5] A Hybrid Machine Learning Framework for Soccer Match ...
+[6] How professional betting syndicates operate football prediction models
+[7] The Kelly Criterion: Bankroll Management & Fractional Kelly
+[8] Empirical parameterization of the Elo Rating System
+[9] A Hybrid Machine Learning Framework for Soccer Match Outcome Prediction: Incorporating Bivariate Poisson Distribution
+[10] Better Metrics for Football Forecasts: Moving Beyond ...

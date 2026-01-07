@@ -1,0 +1,107 @@
+# Futbol Tahmin Sistemi Derinlemesine Araştırma Raporu
+
+Bu rapor, modern futbol tahmin sistemlerinin akademik temellerini, endüstriyel standartlarını ve teknik uygulama stratejilerini analiz etmek amacıyla hazırlanmıştır. Mevcut GitHub deposundaki altyapı ile uyumlu olacak şekilde, teorik bilgiler pratik uygulama önerileriyle birleştirilmiştir.
+
+---
+
+## 1. Akademik Literatür Araştırması
+
+### Özet
+Futbol tahmin literatürü, 1990'ların sonundaki temel istatistiksel modellerden günümüzün karmaşık makine öğrenmesi ve Bayesyen yaklaşımlarına evrilmiştir. Temel odak noktası, düşük skorlu bir spor olan futboldaki yüksek varyansı yönetmek ve gollerin bağımsızlığı varsayımındaki hataları düzeltmektir. Modern çalışmalar, sadece sonuç odaklı değil, oyunun kalitesini ölçen süreç odaklı metriklerin (xG, event sequences) entegrasyonuna yoğunlaşmaktadır.
+
+### Ana Bulgular
+*   **Dixon-Coles Modeli:** Bağımsız Poisson modellerinin en büyük zayıflığı olan düşük skorlu (0-0, 1-1 vb.) maçlardaki korelasyon eksikliğini bir bağımlılık parametresi ($\rho$) ile çözer. Güncel literatür, bu modeli zamanla değişen takım güçlerini yansıtmak için dinamik parametrelerle güncellemektedir.
+*   **Expected Goals (xG):** Şutun kalitesini ölçen bu metrik, artık sadece konum verisiyle değil, şut öncesi pas türü, oyuncu baskısı ve vücut pozisyonu gibi derin özelliklerle modellenmektedir.
+*   **Ensemble Yaklaşımları:** Tek bir model yerine XGBoost, LightGBM ve sinir ağlarının birleşimi (stacking), tahmin doğruluğunu %3-5 oranında artırmaktadır.
+*   **Bayesian Hiyerarşik Modeller:** Özellikle veri kısıtlılığı olan liglerde veya sezon başlarında, lig genelindeki bilgiyi takım seviyesine aktararak daha stabil tahminler sunar.
+
+### Önerilen Implementation Stratejisi
+Mevcut `dixon_coles.py` modelini, takım güçlerini (attack/defense) Elo ratingleri ile hibrit hale getiren bir yapıya dönüştürün. Sezon başında Bayesyen öncüller (priors) kullanarak modelin "soğuk başlama" (cold start) problemini Transfermarkt verileriyle optimize edin.
+
+---
+
+## 2. Endüstri Best Practices
+
+### Özet
+Profesyonel bahis dünyası, verimliliği çok yüksek olan marketlerde (Pinnacle, Betfair) "değer" (value) bulma üzerine kuruludur. Başarılı sendikalar, sadece maç sonucunu değil, oran hareketlerini ve market likiditesini de takip eden sofistike algoritmalar kullanır. Uzun vadeli karlılık, tahmin doğruluğundan ziyade disiplinli bir bankroll yönetimi ve beklenen değer (EV) hesaplamasına bağlıdır.
+
+### Ana Bulgular
+*   **Market Efficiency:** Pinnacle, "wisdom of the crowd" prensibiyle dünyanın en verimli oranlarını sunar. Kapanış oranları (closing lines), genellikle gerçek olasılığa en yakın değerlerdir.
+*   **Betting Syndicates:** Bu gruplar veri toplama, modelleme ve uygulama (execution) birimlerinden oluşur. Genellikle marketin henüz verimli hale gelmediği erken saatlerde veya düşük likiditeli liglerde işlem yaparlar.
+*   **Bankroll Management:** Kelly Criterion, matematiksel olarak bankroll büyümesini maksimize eder. Ancak futboldaki yüksek varyans nedeniyle endüstri standardı **1/4 Fractional Kelly** kullanmaktır.
+
+| Strateji | Risk Seviyesi | Açıklama |
+| :--- | :--- | :--- |
+| **Full Kelly** | Çok Yüksek | Teorik maksimum büyüme, ancak %50+ drawdown riski. |
+| **Fractional Kelly (0.25)** | Orta | Profesyonel standart; volatiliteyi düşürür, sermayeyi korur. |
+| **Fixed Stake** | Düşük | Her bahse bankroll'un %1-2'si; yeni başlayanlar için ideal. |
+
+### Önerilen Implementation Stratejisi
+Sisteme bir "Market Monitor" modülü ekleyerek Pinnacle kapanış oranları ile model tahminlerinizi kıyaslayın. Eğer modeliniz sürekli olarak kapanış oranlarını yeniyorsa (beating the closing line), modelin "edge" sahibi olduğu kanıtlanmış olur.
+
+---
+
+## 3. Teknik Derinleştirme
+
+### Özet
+Futbol skorlarının modellenmesinde Poisson dağılımı temel taşıdır, ancak futbolun doğasındaki bazı kısıtlamalar nedeniyle modifiye edilmesi gerekir. Teknik derinleşme, verilerin zaman içindeki önemini (time-decay) ve hangi özelliklerin (features) tahminde gerçekten fark yarattığını anlamayı gerektirir.
+
+### Ana Bulgular
+*   **Bivariate vs Independent Poisson:** Bağımsız Poisson, takımların birbirine gol atma etkisini yok sayar. Bivariate Poisson ise takımlar arasındaki etkileşimi (örneğin bir takımın gol atmasının diğerinin oyun planını değiştirmesi) modele dahil eder.
+*   **Time-Decay Elo:** Eski maçların etkisini üstel olarak azaltan (exponential decay) bir ağırlıklandırma sistemi, güncel formu yakalamada statik modellerden daha başarılıdır.
+*   **Feature Importance:** Yapılan analizler, "Field Tilt" (rakip yarı sahada topla oynama) ve "PPDA" (pres yoğunluğu) metriklerinin, klasik topla oynama oranından çok daha yüksek tahmin gücüne sahip olduğunu göstermektedir.
+
+### Önerilen Implementation Stratejisi
+`packages/ai-engine/features` dizini altında, sadece sonuç odaklı değil, oyunun yapısını tanımlayan (Progressive Passes, xGChain) özellikleri içeren yeni bir mühendislik katmanı oluşturun. Model eğitiminde `Time-Series Cross-Validation` kullanarak veri sızıntısını (data leakage) önleyin.
+
+---
+
+## 4. Veri Kaynakları
+
+### Özet
+Veri kalitesi, modelin tavanını belirleyen en önemli faktördür. Ücretsiz kaynaklar temel analizler için yeterli olsa da, profesyonel bir sistem için xG ve detaylı event verisi sağlayan API'ler zorunludur.
+
+### Veri Sağlayıcı Karşılaştırması
+
+| Sağlayıcı | Veri Türü | Avantaj | Dezavantaj |
+| :--- | :--- | :--- | :--- |
+| **StatsBomb** | Event / xG | En detaylı event verisi, zengin açık kaynak. | Yüksek maliyet (Pro). |
+| **Opta** | Professional | Endüstri standardı, geniş kapsam. | Çok pahalı, kapalı ekosistem. |
+| **Understat** | xG (Web) | Ücretsiz, erişilebilir xG verisi. | Sınırlı lig sayısı, API yok. |
+| **Sportmonks** | General API | Uygun fiyat, iyi dokümantasyon. | xG kalitesi değişken. |
+
+### Önerilen Implementation Stratejisi
+Başlangıç aşamasında `Football-Data.co.uk` üzerinden geçmiş oranları ve `Understat` üzerinden xG verilerini çekerek bir base-model oluşturun. Real-time oranlar için `The-Odds-API` entegrasyonunu tamamlayın.
+
+---
+
+## 5. Model Değerlendirme
+
+### Özet
+Bir modelin başarısı sadece "accuracy" ile ölçülemez. Olasılıksal tahminlerde modelin ne kadar "kalibre" olduğu ve yanlış tahminlerinde ne kadar büyük hata yaptığı (Log Loss) çok daha kritiktir.
+
+### Ana Bulgular
+*   **Brier Score:** Tahmin edilen olasılık ile gerçek sonuç arasındaki farkın karesidir. Futbolda 0.18 - 0.20 arası bir Brier skoru "çok iyi" kabul edilir.
+*   **Log Loss:** Yanlış ama yüksek güvenli tahminleri ağır cezalandırır. Modelin aşırı güvenli (overconfident) olup olmadığını anlamak için en iyi metriktir.
+*   **Statistical Significance:** Bir modelin şans eseri mi yoksa gerçekten başarılı mı olduğunu anlamak için en az 500-1000 arası bağımsız bahis verisi gereklidir.
+
+### Önerilen Implementation Stratejisi
+`packages/ai-engine/evaluation/metrics.py` dosyasına Brier Score ve RPS (Ranked Probability Score) hesaplayıcılarını ekleyin. Modelin her hafta için "Calibration Plot" grafiğini oluşturarak, tahmin edilen olasılıkların gerçek frekanslarla örtüşüp örtüşmediğini görselleştirin.
+
+---
+
+## 6. Rekabet Analizi
+
+### Özet
+Piyasadaki en güçlü rakiplerden biri olan FiveThirtyEight'in SPI modeli, karmaşık ama şeffaf bir metodoloji sunar. Diğer popüler siteler (Forebet vb.) genellikle daha basit istatistiksel yaklaşımlar kullanır.
+
+### Ana Bulgular
+*   **FiveThirtyEight SPI:** Ofansif ve defansif ratingleri ayrı ayrı hesaplar. Maç içindeki "adjusted goals" (kırmızı kart veya skor avantajına göre düzeltilmiş goller) kullanımı, modelin en güçlü yanıdır.
+*   **Betfair Exchange:** Piyasadaki en güncel "implied probability" (zımni olasılık) kaynağıdır. Modelinizin başarısını ölçmek için Betfair oranlarını "benchmark" olarak kullanmalısınız.
+
+### Önerilen Implementation Stratejisi
+FiveThirtyEight'in metodolojisinden "Adjusted Goals" mantığını ödünç alın. Skor 3-0 olduktan sonra atılan gollerin veya 10 kişi kalmış bir takıma karşı atılan gollerin model üzerindeki ağırlığını azaltarak daha gerçekçi bir takım gücü profili oluşturun.
+
+---
+**Hazırlayan:** Manus AI
+**Tarih:** 4 Ocak 2026
